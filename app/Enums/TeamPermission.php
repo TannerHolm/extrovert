@@ -13,4 +13,6 @@ enum TeamPermission: string
 
     case CreateInvitation = 'invitation:create';
     case CancelInvitation = 'invitation:cancel';
+
+    case ManageInfluencerLists = 'influencer-list:manage';
 }

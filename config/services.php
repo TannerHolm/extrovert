@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'youtube' => [
+        'api_key' => env('YOUTUBE_API_KEY'),
+    ],
+
+    'rapidapi' => [
+        'key' => env('RAPIDAPI_KEY'),
+        'instagram_host' => env('RAPIDAPI_INSTAGRAM_HOST', 'instagram-scraper-api2.p.rapidapi.com'),
+        'tiktok_host' => env('RAPIDAPI_TIKTOK_HOST', 'tiktok-scraper10.p.rapidapi.com'),
+    ],
+
 ];

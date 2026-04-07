@@ -82,6 +82,16 @@ class Team extends Model
     }
 
     /**
+     * Get all influencer lists for this team.
+     *
+     * @return HasMany<InfluencerList, $this>
+     */
+    public function influencerLists(): HasMany
+    {
+        return $this->hasMany(InfluencerList::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
