@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Influencers;
 
 use App\Enums\Platform;
+use App\Exceptions\PlatformSearchException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Influencers\SearchInfluencerRequest;
 use App\Services\PlatformSearchManager;
@@ -46,7 +47,11 @@ class InfluencerSearchController extends Controller
         $query = $request->validated('query');
         $maxResults = $request->validated('max_results', 10);
 
-        $results = $manager->search($platform, $query, $maxResults);
+        try {
+            $results = $manager->search($platform, $query, $maxResults);
+        } catch (PlatformSearchException $e) {
+            return response()->json(['error' => $e->getMessage()], 503);
+        }
 
         return response()->json([
             'results' => collect($results)->map(fn ($r) => $r->toArray()),

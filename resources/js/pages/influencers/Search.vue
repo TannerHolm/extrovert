@@ -66,11 +66,12 @@ async function performSearch() {
             },
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-            throw new Error(`Search failed: ${response.statusText}`);
+            throw new Error(data.error || `Search failed: ${response.statusText}`);
         }
 
-        const data = await response.json();
         results.value = data.results || [];
     } catch (e) {
         error.value = e instanceof Error ? e.message : 'Search failed. Please try again.';
