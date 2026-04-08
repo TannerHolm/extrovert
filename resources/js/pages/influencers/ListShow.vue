@@ -21,11 +21,12 @@ import {
     destroy as destroyEntry,
     update as updateEntry,
 } from '@/routes/influencers/entries';
-import type { InfluencerListEntry, OutreachStatusOption } from '@/types';
+import type { InfluencerListEntry, OutreachStatusOption, Paginator } from '@/types';
 
 type Props = {
     list: { id: number; name: string; description: string | null };
-    entries: InfluencerListEntry[];
+    entries: Paginator<InfluencerListEntry>;
+    filters: { status: string };
     outreachStatuses: OutreachStatusOption[];
     canManage: boolean;
 };
@@ -46,13 +47,18 @@ defineOptions({
     }),
 });
 
-const filterStatus = ref('all');
+const filterStatus = ref(props.filters.status);
 const editingNotes = ref<number | null>(null);
 const notesDraft = ref('');
 
-function filteredEntries() {
-    if (filterStatus.value === 'all') return props.entries;
-    return props.entries.filter((e) => e.outreach_status === filterStatus.value);
+function applyFilter(status: string) {
+    filterStatus.value = status;
+    const teamSlug = page.props.currentTeam!.slug;
+    router.get(
+        show({ current_team: teamSlug, influencerList: props.list.id }).url,
+        status !== 'all' ? { status } : {},
+        { preserveState: true, preserveScroll: true, only: ['entries', 'filters'] },
+    );
 }
 
 function formatFollowers(count: number | null): string {
@@ -126,7 +132,7 @@ function removeEntry(entryId: number) {
         <!-- Filter -->
         <div class="flex items-center gap-3">
             <span class="text-sm text-muted-foreground">Filter:</span>
-            <Select v-model="filterStatus">
+            <Select :model-value="filterStatus" @update:model-value="(v) => applyFilter(String(v))">
                 <SelectTrigger class="w-[180px]">
                     <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
@@ -142,14 +148,14 @@ function removeEntry(entryId: number) {
                 </SelectContent>
             </Select>
             <span class="text-sm text-muted-foreground">
-                {{ filteredEntries().length }} influencer{{ filteredEntries().length !== 1 ? 's' : '' }}
+                {{ entries.meta.total }} influencer{{ entries.meta.total !== 1 ? 's' : '' }}
             </span>
         </div>
 
         <!-- Entries Table -->
-        <div v-if="filteredEntries().length > 0" class="space-y-3">
+        <div v-if="entries.data.length > 0" class="space-y-3">
             <div
-                v-for="entry in filteredEntries()"
+                v-for="entry in entries.data"
                 :key="entry.id"
                 class="rounded-lg border p-4"
             >
@@ -277,9 +283,36 @@ function removeEntry(entryId: number) {
             </div>
         </div>
 
+        <!-- Pagination -->
+        <div v-if="entries.meta.last_page > 1" class="flex items-center justify-between">
+            <span class="text-sm text-muted-foreground">
+                Showing {{ entries.meta.from }}–{{ entries.meta.to }} of {{ entries.meta.total }}
+            </span>
+            <div class="flex gap-2">
+                <Link
+                    v-if="entries.links.prev"
+                    :href="entries.links.prev"
+                    preserveState
+                    preserveScroll
+                >
+                    <Button variant="outline" size="sm">Previous</Button>
+                </Link>
+                <Button v-else variant="outline" size="sm" disabled>Previous</Button>
+                <Link
+                    v-if="entries.links.next"
+                    :href="entries.links.next"
+                    preserveState
+                    preserveScroll
+                >
+                    <Button variant="outline" size="sm">Next</Button>
+                </Link>
+                <Button v-else variant="outline" size="sm" disabled>Next</Button>
+            </div>
+        </div>
+
         <!-- Empty State -->
         <div
-            v-else
+            v-else-if="entries.data.length === 0"
             class="flex flex-col items-center justify-center py-12"
         >
             <Users class="h-12 w-12 text-muted-foreground/30" />

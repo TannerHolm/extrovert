@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\PlatformSearchService;
 use App\Enums\Platform;
 use App\Support\InfluencerSearchResult;
+use App\Exceptions\PlatformSearchException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -29,9 +30,7 @@ class InstagramSearchService implements PlatformSearchService
         $host = config('services.rapidapi.instagram_host');
 
         if (! $apiKey) {
-            Log::warning('RapidAPI key not configured for Instagram search');
-
-            return [];
+            throw new PlatformSearchException('Instagram API key is not configured. Please contact your administrator.');
         }
 
         // Search for users
@@ -44,8 +43,7 @@ class InstagramSearchService implements PlatformSearchService
 
         if ($searchResponse->failed()) {
             Log::error('Instagram search failed', ['status' => $searchResponse->status(), 'body' => $searchResponse->body()]);
-
-            return [];
+            throw new PlatformSearchException('Instagram search is temporarily unavailable. Please try again later.');
         }
 
         $users = $searchResponse->json('data.items', $searchResponse->json('data.users', []));

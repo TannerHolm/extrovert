@@ -66,11 +66,14 @@ class InfluencerListController extends Controller
 
         abort_unless($influencerList->team_id === $team->id, 404);
 
+        $status = $request->input('status');
+
         $entries = $influencerList->entries()
             ->with('influencer', 'addedBy')
+            ->when($status && $status !== 'all', fn ($q) => $q->where('outreach_status', $status))
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn ($entry) => [
+            ->paginate(25)
+            ->through(fn ($entry) => [
                 'id' => $entry->id,
                 'outreach_status' => $entry->outreach_status->value,
                 'outreach_status_label' => $entry->outreach_status->label(),
@@ -103,6 +106,7 @@ class InfluencerListController extends Controller
                 'description' => $influencerList->description,
             ],
             'entries' => $entries,
+            'filters' => ['status' => $status ?? 'all'],
             'outreachStatuses' => collect(OutreachStatus::cases())->map(fn (OutreachStatus $s) => [
                 'value' => $s->value,
                 'label' => $s->label(),

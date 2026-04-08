@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\PlatformSearchService;
 use App\Enums\Platform;
 use App\Support\InfluencerSearchResult;
+use App\Exceptions\PlatformSearchException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -30,9 +31,7 @@ class YouTubeSearchService implements PlatformSearchService
         $apiKey = config('services.youtube.api_key');
 
         if (! $apiKey) {
-            Log::warning('YouTube API key not configured');
-
-            return [];
+            throw new PlatformSearchException('YouTube API key is not configured. Please contact your administrator.');
         }
 
         // Step 1: Search for channels
@@ -47,8 +46,7 @@ class YouTubeSearchService implements PlatformSearchService
 
         if ($searchResponse->failed()) {
             Log::error('YouTube search failed', ['status' => $searchResponse->status(), 'body' => $searchResponse->body()]);
-
-            return [];
+            throw new PlatformSearchException('YouTube search is temporarily unavailable. Please try again later.');
         }
 
         $items = $searchResponse->json('items', []);
@@ -73,8 +71,7 @@ class YouTubeSearchService implements PlatformSearchService
 
         if ($channelsResponse->failed()) {
             Log::error('YouTube channels fetch failed', ['status' => $channelsResponse->status()]);
-
-            return [];
+            throw new PlatformSearchException('YouTube search is temporarily unavailable. Please try again later.');
         }
 
         $channels = collect($channelsResponse->json('items', []))->keyBy('id');
@@ -105,7 +102,7 @@ class YouTubeSearchService implements PlatformSearchService
                 avatarUrl: $snippet['thumbnails']['medium']['url'] ?? $snippet['thumbnails']['default']['url'] ?? null,
                 followerCount: $subscriberCount,
                 engagementRate: $engagementRates[$channelId] ?? null,
-                contactEmail: $branding['unsubscribedTrailer'] ?? null, // YouTube doesn't expose email via API
+                contactEmail: null, // YouTube does not expose email via API
                 latestActivityAt: $snippet['publishedAt'] ?? null,
             );
         })->filter()->values()->all();
