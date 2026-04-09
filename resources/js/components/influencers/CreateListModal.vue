@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, useSlots } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -15,8 +15,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { store } from '@/routes/influencers/lists';
 
+type Props = {
+    preserveOnSuccess?: boolean;
+};
+
+const props = withDefaults(defineProps<Props>(), {
+    preserveOnSuccess: false,
+});
+
+const emit = defineEmits<{
+    created: [];
+}>();
+
+const open = defineModel<boolean>('open', { default: false });
 const page = usePage();
-const open = ref(false);
+const slots = useSlots();
 
 const form = useForm({
     name: '',
@@ -25,9 +38,12 @@ const form = useForm({
 
 function submit() {
     form.post(store(page.props.currentTeam!.slug).url, {
+        preserveScroll: props.preserveOnSuccess,
+        preserveState: props.preserveOnSuccess,
         onSuccess: () => {
             open.value = false;
             form.reset();
+            emit('created');
         },
     });
 }
@@ -35,7 +51,7 @@ function submit() {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogTrigger as-child>
+        <DialogTrigger v-if="slots.default" as-child>
             <slot />
         </DialogTrigger>
         <DialogContent>

@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const page = usePage();
 const saving = ref(false);
+const showCreateModal = ref(false);
 
 function saveToList(listId: number) {
     saving.value = true;
@@ -70,12 +71,12 @@ function saveToList(listId: number) {
                 </DropdownMenuItem>
             </template>
             <DropdownMenuSeparator />
-            <CreateListModal>
-                <DropdownMenuItem @click.prevent>
-                    <Plus class="mr-2 h-4 w-4" />
-                    New list
-                </DropdownMenuItem>
-            </CreateListModal>
+            <DropdownMenuItem @click="showCreateModal = true">
+                <Plus class="mr-2 h-4 w-4" />
+                New list
+            </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
+
+    <CreateListModal v-model:open="showCreateModal" preserve-on-success />
 </template>

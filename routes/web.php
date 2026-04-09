@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Influencers\InfluencerListController;
 use App\Http\Controllers\Influencers\InfluencerListEntryController;
 use App\Http\Controllers\Influencers\InfluencerSearchController;
@@ -15,7 +16,7 @@ Route::inertia('/', 'Welcome', [
 Route::prefix('{current_team}')
     ->middleware(['auth', 'verified', EnsureTeamMembership::class])
     ->group(function () {
-        Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+        Route::get('dashboard', DashboardController::class)->name('dashboard');
 
         // Influencer Discovery
         Route::get('influencers/search', [InfluencerSearchController::class, 'index'])->name('influencers.search');

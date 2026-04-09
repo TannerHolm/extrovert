@@ -60,44 +60,52 @@ class InfluencerListController extends Controller
     /**
      * Display a specific influencer list with its entries.
      */
-    public function show(Request $request, InfluencerList $influencerList): Response
+    public function show(Request $request, string $influencerList): Response
     {
         $team = $request->user()->currentTeam;
+        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
 
         $status = $request->input('status');
+        $view = $request->input('view', 'list');
 
-        $entries = $influencerList->entries()
+        $mapEntry = fn ($entry) => [
+            'id' => $entry->id,
+            'outreach_status' => $entry->outreach_status->value,
+            'outreach_status_label' => $entry->outreach_status->label(),
+            'outreach_status_color' => $entry->outreach_status->color(),
+            'notes' => $entry->notes,
+            'added_by' => $entry->addedBy ? [
+                'id' => $entry->addedBy->id,
+                'name' => $entry->addedBy->name,
+            ] : null,
+            'created_at' => $entry->created_at->toISOString(),
+            'influencer' => [
+                'id' => $entry->influencer->id,
+                'platform' => $entry->influencer->platform->value,
+                'platform_label' => $entry->influencer->platform->label(),
+                'handle' => $entry->influencer->handle,
+                'profile_url' => $entry->influencer->profile_url,
+                'display_name' => $entry->influencer->display_name,
+                'avatar_url' => $entry->influencer->avatar_url,
+                'follower_count' => $entry->influencer->follower_count,
+                'engagement_rate' => $entry->influencer->engagement_rate,
+                'contact_email' => $entry->influencer->contact_email,
+                'latest_activity_at' => $entry->influencer->latest_activity_at?->toISOString(),
+            ],
+        ];
+
+        $query = $influencerList->entries()
             ->with('influencer', 'addedBy')
             ->when($status && $status !== 'all', fn ($q) => $q->where('outreach_status', $status))
-            ->orderByDesc('created_at')
-            ->paginate(25)
-            ->through(fn ($entry) => [
-                'id' => $entry->id,
-                'outreach_status' => $entry->outreach_status->value,
-                'outreach_status_label' => $entry->outreach_status->label(),
-                'outreach_status_color' => $entry->outreach_status->color(),
-                'notes' => $entry->notes,
-                'added_by' => $entry->addedBy ? [
-                    'id' => $entry->addedBy->id,
-                    'name' => $entry->addedBy->name,
-                ] : null,
-                'created_at' => $entry->created_at->toISOString(),
-                'influencer' => [
-                    'id' => $entry->influencer->id,
-                    'platform' => $entry->influencer->platform->value,
-                    'platform_label' => $entry->influencer->platform->label(),
-                    'handle' => $entry->influencer->handle,
-                    'profile_url' => $entry->influencer->profile_url,
-                    'display_name' => $entry->influencer->display_name,
-                    'avatar_url' => $entry->influencer->avatar_url,
-                    'follower_count' => $entry->influencer->follower_count,
-                    'engagement_rate' => $entry->influencer->engagement_rate,
-                    'contact_email' => $entry->influencer->contact_email,
-                    'latest_activity_at' => $entry->influencer->latest_activity_at?->toISOString(),
-                ],
-            ]);
+            ->orderByDesc('created_at');
+
+        if ($view === 'kanban') {
+            $entries = $query->get()->map($mapEntry)->values();
+        } else {
+            $entries = $query->paginate(25)->through($mapEntry);
+        }
 
         return Inertia::render('influencers/ListShow', [
             'list' => [
@@ -106,6 +114,7 @@ class InfluencerListController extends Controller
                 'description' => $influencerList->description,
             ],
             'entries' => $entries,
+            'view' => $view,
             'filters' => ['status' => $status ?? 'all'],
             'outreachStatuses' => collect(OutreachStatus::cases())->map(fn (OutreachStatus $s) => [
                 'value' => $s->value,
@@ -119,9 +128,10 @@ class InfluencerListController extends Controller
     /**
      * Update an influencer list.
      */
-    public function update(SaveInfluencerListRequest $request, InfluencerList $influencerList): RedirectResponse
+    public function update(SaveInfluencerListRequest $request, string $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
+        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(
@@ -137,9 +147,10 @@ class InfluencerListController extends Controller
     /**
      * Delete an influencer list.
      */
-    public function destroy(Request $request, InfluencerList $influencerList): RedirectResponse
+    public function destroy(Request $request, string $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
+        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(

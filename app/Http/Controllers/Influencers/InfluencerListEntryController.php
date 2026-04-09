@@ -17,9 +17,10 @@ class InfluencerListEntryController extends Controller
     /**
      * Add an influencer to a list.
      */
-    public function store(SaveInfluencerToListRequest $request, InfluencerList $influencerList): RedirectResponse
+    public function store(SaveInfluencerToListRequest $request, string $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
+        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(
@@ -64,9 +65,11 @@ class InfluencerListEntryController extends Controller
     /**
      * Update an entry's outreach status or notes.
      */
-    public function update(UpdateOutreachStatusRequest $request, InfluencerList $influencerList, InfluencerListEntry $entry): RedirectResponse
+    public function update(UpdateOutreachStatusRequest $request, string $influencerList, string $entry): RedirectResponse
     {
         $team = $request->user()->currentTeam;
+        $influencerList = InfluencerList::findOrFail($influencerList);
+        $entry = InfluencerListEntry::findOrFail($entry);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless($entry->influencer_list_id === $influencerList->id, 404);
@@ -83,9 +86,11 @@ class InfluencerListEntryController extends Controller
     /**
      * Remove an influencer from a list.
      */
-    public function destroy(Request $request, InfluencerList $influencerList, InfluencerListEntry $entry): RedirectResponse
+    public function destroy(Request $request, string $influencerList, string $entry): RedirectResponse
     {
         $team = $request->user()->currentTeam;
+        $influencerList = InfluencerList::findOrFail($influencerList);
+        $entry = InfluencerListEntry::findOrFail($entry);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless($entry->influencer_list_id === $influencerList->id, 404);
