@@ -16,9 +16,11 @@ class InstagramSearchService implements PlatformSearchService
     {
         $cacheKey = 'instagram_search_'.md5($query.'_'.$maxResults);
 
-        return Cache::remember($cacheKey, now()->addMinutes(15), function () use ($query, $maxResults) {
-            return $this->performSearch($query, $maxResults);
+        $cached = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($query, $maxResults) {
+            return array_map(fn (InfluencerSearchResult $r) => $r->toArray(), $this->performSearch($query, $maxResults));
         });
+
+        return array_map(fn (array $r) => InfluencerSearchResult::fromArray($r), $cached);
     }
 
     /**
