@@ -60,10 +60,9 @@ class InfluencerListController extends Controller
     /**
      * Display a specific influencer list with its entries.
      */
-    public function show(Request $request, string $influencerList): Response
+    public function show(Request $request, InfluencerList $influencerList): Response
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
 
