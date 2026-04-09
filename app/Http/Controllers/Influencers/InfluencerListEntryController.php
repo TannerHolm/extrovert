@@ -18,12 +18,11 @@ class InfluencerListEntryController extends Controller
     /**
      * Add an influencer to a list.
      */
-    public function store(SaveInfluencerToListRequest $request, string $influencerList): RedirectResponse
+    public function store(SaveInfluencerToListRequest $request): RedirectResponse
     {
         $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
-        $influencerList = InfluencerList::findOrFail($influencerList);
+        $influencerList = InfluencerList::where('id', $request->route('influencerList'))->where('team_id', $team->id)->firstOrFail();
 
-        abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
             403,
@@ -66,14 +65,12 @@ class InfluencerListEntryController extends Controller
     /**
      * Update an entry's outreach status or notes.
      */
-    public function update(UpdateOutreachStatusRequest $request, string $influencerList, string $entry): RedirectResponse
+    public function update(UpdateOutreachStatusRequest $request): RedirectResponse
     {
         $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
-        $influencerList = InfluencerList::findOrFail($influencerList);
-        $entry = InfluencerListEntry::findOrFail($entry);
+        $influencerList = InfluencerList::where('id', $request->route('influencerList'))->where('team_id', $team->id)->firstOrFail();
+        $entry = InfluencerListEntry::where('id', $request->route('entry'))->where('influencer_list_id', $influencerList->id)->firstOrFail();
 
-        abort_unless($influencerList->team_id === $team->id, 404);
-        abort_unless($entry->influencer_list_id === $influencerList->id, 404);
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
             403,
@@ -87,14 +84,12 @@ class InfluencerListEntryController extends Controller
     /**
      * Remove an influencer from a list.
      */
-    public function destroy(Request $request, string $influencerList, string $entry): RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
         $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
-        $influencerList = InfluencerList::findOrFail($influencerList);
-        $entry = InfluencerListEntry::findOrFail($entry);
+        $influencerList = InfluencerList::where('id', $request->route('influencerList'))->where('team_id', $team->id)->firstOrFail();
+        $entry = InfluencerListEntry::where('id', $request->route('entry'))->where('influencer_list_id', $influencerList->id)->firstOrFail();
 
-        abort_unless($influencerList->team_id === $team->id, 404);
-        abort_unless($entry->influencer_list_id === $influencerList->id, 404);
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
             403,

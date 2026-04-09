@@ -61,10 +61,10 @@ class InfluencerListController extends Controller
     /**
      * Display a specific influencer list with its entries.
      */
-    public function show(Request $request, string $influencerList): Response
+    public function show(Request $request): Response
     {
         $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
-        $influencerList = $team->influencerLists()->findOrFail($influencerList);
+        $influencerList = InfluencerList::where('id', $request->route('influencerList'))->where('team_id', $team->id)->firstOrFail();
 
         $status = $request->input('status');
         $view = $request->input('view', 'list');
@@ -127,10 +127,10 @@ class InfluencerListController extends Controller
     /**
      * Update an influencer list.
      */
-    public function update(SaveInfluencerListRequest $request, string $influencerList): RedirectResponse
+    public function update(SaveInfluencerListRequest $request): RedirectResponse
     {
         $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
-        $influencerList = $team->influencerLists()->findOrFail($influencerList);
+        $influencerList = InfluencerList::where('id', $request->route('influencerList'))->where('team_id', $team->id)->firstOrFail();
 
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
@@ -145,10 +145,10 @@ class InfluencerListController extends Controller
     /**
      * Delete an influencer list.
      */
-    public function destroy(Request $request, string $influencerList): RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
         $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
-        $influencerList = $team->influencerLists()->findOrFail($influencerList);
+        $influencerList = InfluencerList::where('id', $request->route('influencerList'))->where('team_id', $team->id)->firstOrFail();
 
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
