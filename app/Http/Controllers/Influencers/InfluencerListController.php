@@ -63,9 +63,7 @@ class InfluencerListController extends Controller
     public function show(Request $request, string $influencerList): Response
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
-
-        abort_unless($influencerList->team_id === $team->id, 404);
+        $influencerList = $team->influencerLists()->findOrFail($influencerList);
 
         $status = $request->input('status');
         $view = $request->input('view', 'list');
@@ -131,9 +129,8 @@ class InfluencerListController extends Controller
     public function update(SaveInfluencerListRequest $request, string $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
+        $influencerList = $team->influencerLists()->findOrFail($influencerList);
 
-        abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
             403,
@@ -150,9 +147,8 @@ class InfluencerListController extends Controller
     public function destroy(Request $request, string $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
+        $influencerList = $team->influencerLists()->findOrFail($influencerList);
 
-        abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
             403,
