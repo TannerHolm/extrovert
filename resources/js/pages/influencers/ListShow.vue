@@ -570,7 +570,7 @@ const statusBgColors: Record<string, string> = {
         </div>
 
         <!-- Pagination (list view only) -->
-        <div v-if="viewMode === 'list' && paginatedEntries && paginatedEntries.meta.last_page > 1" class="flex items-center justify-between">
+        <div v-if="viewMode === 'list' && paginatedEntries?.meta?.last_page > 1" class="flex items-center justify-between">
             <span class="text-sm text-muted-foreground">
                 Showing {{ paginatedEntries.meta.from }}–{{ paginatedEntries.meta.to }} of {{ paginatedEntries.meta.total }}
             </span>
