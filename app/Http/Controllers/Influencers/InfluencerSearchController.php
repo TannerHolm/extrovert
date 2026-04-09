@@ -7,6 +7,7 @@ use App\Exceptions\PlatformSearchException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Influencers\SearchInfluencerRequest;
 use App\Services\PlatformSearchManager;
+use App\Models\Team;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,7 +20,7 @@ class InfluencerSearchController extends Controller
      */
     public function index(Request $request): Response
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
 
         return Inertia::render('influencers/Search', [
             'platforms' => collect(Platform::cases())->map(fn (Platform $p) => [

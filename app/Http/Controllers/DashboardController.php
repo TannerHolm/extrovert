@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OutreachStatus;
+use App\Models\Team;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -11,7 +12,7 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
 
         $listIds = $team->influencerLists()->pluck('id');
 

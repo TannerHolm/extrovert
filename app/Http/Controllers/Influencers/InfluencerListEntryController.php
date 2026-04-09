@@ -9,6 +9,7 @@ use App\Http\Requests\Influencers\UpdateOutreachStatusRequest;
 use App\Models\Influencer;
 use App\Models\InfluencerList;
 use App\Models\InfluencerListEntry;
+use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -19,7 +20,7 @@ class InfluencerListEntryController extends Controller
      */
     public function store(SaveInfluencerToListRequest $request, string $influencerList): RedirectResponse
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
         $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
@@ -67,7 +68,7 @@ class InfluencerListEntryController extends Controller
      */
     public function update(UpdateOutreachStatusRequest $request, string $influencerList, string $entry): RedirectResponse
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
         $influencerList = InfluencerList::findOrFail($influencerList);
         $entry = InfluencerListEntry::findOrFail($entry);
 
@@ -88,7 +89,7 @@ class InfluencerListEntryController extends Controller
      */
     public function destroy(Request $request, string $influencerList, string $entry): RedirectResponse
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
         $influencerList = InfluencerList::findOrFail($influencerList);
         $entry = InfluencerListEntry::findOrFail($entry);
 

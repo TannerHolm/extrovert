@@ -7,6 +7,7 @@ use App\Enums\TeamPermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Influencers\SaveInfluencerListRequest;
 use App\Models\InfluencerList;
+use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,7 +20,7 @@ class InfluencerListController extends Controller
      */
     public function index(Request $request): Response
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
 
         return Inertia::render('influencers/Lists', [
             'lists' => $team->influencerLists()
@@ -42,7 +43,7 @@ class InfluencerListController extends Controller
      */
     public function store(SaveInfluencerListRequest $request): RedirectResponse
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
 
         abort_unless(
             $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
@@ -62,7 +63,7 @@ class InfluencerListController extends Controller
      */
     public function show(Request $request, string $influencerList): Response
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
         $influencerList = $team->influencerLists()->findOrFail($influencerList);
 
         $status = $request->input('status');
@@ -128,7 +129,7 @@ class InfluencerListController extends Controller
      */
     public function update(SaveInfluencerListRequest $request, string $influencerList): RedirectResponse
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
         $influencerList = $team->influencerLists()->findOrFail($influencerList);
 
         abort_unless(
@@ -146,7 +147,7 @@ class InfluencerListController extends Controller
      */
     public function destroy(Request $request, string $influencerList): RedirectResponse
     {
-        $team = $request->user()->currentTeam;
+        $team = Team::where('slug', $request->route('current_team'))->firstOrFail();
         $influencerList = $team->influencerLists()->findOrFail($influencerList);
 
         abort_unless(
