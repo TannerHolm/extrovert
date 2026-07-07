@@ -22,7 +22,7 @@ class InfluencerSearchController extends Controller
         $team = $request->user()->currentTeam;
 
         return Inertia::render('influencers/Search', [
-            'platforms' => collect(Platform::cases())->map(fn (Platform $p) => [
+            'platforms' => collect(Platform::available())->map(fn (Platform $p) => [
                 'value' => $p->value,
                 'label' => $p->label(),
             ]),

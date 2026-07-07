@@ -2,31 +2,25 @@
 
 namespace App\Services;
 
-use App\Contracts\PlatformSearchService;
 use App\Enums\Platform;
-use App\Support\InfluencerSearchResult;
 use App\Exceptions\PlatformSearchException;
-use Illuminate\Support\Facades\Cache;
+use App\Support\InfluencerSearchResult;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class YouTubeSearchService implements PlatformSearchService
+class YouTubeSearchService extends AbstractPlatformSearchService
 {
     private const BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
-    public function search(string $query, int $maxResults = 10): array
+    protected function cachePrefix(): string
     {
-        $cacheKey = 'youtube_search_'.md5($query.'_'.$maxResults);
-
-        return Cache::remember($cacheKey, now()->addMinutes(15), function () use ($query, $maxResults) {
-            return $this->performSearch($query, $maxResults);
-        });
+        return 'youtube';
     }
 
     /**
      * @return array<InfluencerSearchResult>
      */
-    private function performSearch(string $query, int $maxResults): array
+    protected function performSearch(string $query, int $maxResults): array
     {
         $apiKey = config('services.youtube.api_key');
 
@@ -45,7 +39,7 @@ class YouTubeSearchService implements PlatformSearchService
         ]);
 
         if ($searchResponse->failed()) {
-            Log::error('YouTube search failed', ['status' => $searchResponse->status(), 'body' => $searchResponse->body()]);
+            Log::error('YouTube search failed', ['status' => $searchResponse->status()]);
             throw new PlatformSearchException('YouTube search is temporarily unavailable. Please try again later.');
         }
 
@@ -76,10 +70,10 @@ class YouTubeSearchService implements PlatformSearchService
 
         $channels = collect($channelsResponse->json('items', []))->keyBy('id');
 
-        // Step 3: Calculate engagement rates by sampling recent videos
-        $engagementRates = $this->calculateEngagementRates($channels, $apiKey);
+        // Step 3: Sample recent videos for engagement rate and any listed contact email.
+        $videoAnalysis = $this->analyzeRecentVideos($channels, $apiKey);
 
-        return collect($items)->map(function (array $item) use ($channels, $engagementRates) {
+        return collect($items)->map(function (array $item) use ($channels, $videoAnalysis) {
             $channelId = $item['id']['channelId'] ?? $item['snippet']['channelId'] ?? null;
 
             if (! $channelId || ! $channels->has($channelId)) {
@@ -93,6 +87,11 @@ class YouTubeSearchService implements PlatformSearchService
 
             $subscriberCount = isset($stats['subscriberCount']) ? (int) $stats['subscriberCount'] : null;
 
+            // YouTube's API does not expose the gated "business email" field, but creators
+            // often list a contact email in their About text or recent video descriptions.
+            $contactEmail = $this->extractEmail($snippet['description'] ?? '', $branding['description'] ?? '')
+                ?? ($videoAnalysis[$channelId]['email'] ?? null);
+
             return new InfluencerSearchResult(
                 platform: Platform::YouTube,
                 platformId: $channelId,
@@ -101,27 +100,27 @@ class YouTubeSearchService implements PlatformSearchService
                 displayName: $snippet['title'] ?? null,
                 avatarUrl: $snippet['thumbnails']['medium']['url'] ?? $snippet['thumbnails']['default']['url'] ?? null,
                 followerCount: $subscriberCount,
-                engagementRate: $engagementRates[$channelId] ?? null,
-                contactEmail: null, // YouTube does not expose email via API
+                engagementRate: $videoAnalysis[$channelId]['rate'] ?? null,
+                contactEmail: $contactEmail,
                 latestActivityAt: $snippet['publishedAt'] ?? null,
             );
         })->filter()->values()->all();
     }
 
     /**
-     * Sample recent videos to estimate engagement rate per channel.
+     * Sample recent videos per channel to estimate engagement rate and find a listed contact email.
      *
-     * @return array<string, float> Channel ID => engagement rate
+     * @return array<string, array{rate: float|null, email: string|null}>
      */
-    private function calculateEngagementRates($channels, string $apiKey): array
+    private function analyzeRecentVideos($channels, string $apiKey): array
     {
-        $rates = [];
+        $analysis = [];
 
         foreach ($channels as $channelId => $channel) {
             $uploadsPlaylistId = $channel['contentDetails']['relatedPlaylists']['uploads'] ?? null;
             $subscriberCount = (int) ($channel['statistics']['subscriberCount'] ?? 0);
 
-            if (! $uploadsPlaylistId || $subscriberCount === 0) {
+            if (! $uploadsPlaylistId) {
                 continue;
             }
 
@@ -146,7 +145,7 @@ class YouTubeSearchService implements PlatformSearchService
                 continue;
             }
 
-            // Get video statistics
+            // Get video statistics and descriptions
             $videosResponse = Http::get(self::BASE_URL.'/videos', [
                 'key' => $apiKey,
                 'id' => $videoIds,
@@ -160,20 +159,39 @@ class YouTubeSearchService implements PlatformSearchService
             $videos = $videosResponse->json('items', []);
             $totalEngagement = 0;
             $videoCount = 0;
+            $email = null;
 
             foreach ($videos as $video) {
                 $likes = (int) ($video['statistics']['likeCount'] ?? 0);
                 $comments = (int) ($video['statistics']['commentCount'] ?? 0);
                 $totalEngagement += $likes + $comments;
                 $videoCount++;
+
+                $email ??= $this->extractEmail($video['snippet']['description'] ?? '');
             }
 
-            if ($videoCount > 0) {
-                $avgEngagement = $totalEngagement / $videoCount;
-                $rates[$channelId] = round(($avgEngagement / $subscriberCount) * 100, 2);
+            $rate = null;
+            if ($videoCount > 0 && $subscriberCount > 0) {
+                $rate = round(($totalEngagement / $videoCount / $subscriberCount) * 100, 2);
+            }
+
+            $analysis[$channelId] = ['rate' => $rate, 'email' => $email];
+        }
+
+        return $analysis;
+    }
+
+    /**
+     * Extract the first email address found in the given text fragments, if any.
+     */
+    private function extractEmail(string ...$texts): ?string
+    {
+        foreach ($texts as $text) {
+            if ($text !== '' && preg_match('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,63}/', $text, $matches)) {
+                return $matches[0];
             }
         }
 
-        return $rates;
+        return null;
     }
 }

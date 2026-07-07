@@ -20,7 +20,7 @@ class SearchInfluencerRequest extends FormRequest
     {
         return [
             'query' => ['required', 'string', 'min:2', 'max:100'],
-            'platform' => ['required', Rule::enum(Platform::class)],
+            'platform' => ['required', Rule::enum(Platform::class)->only(Platform::available())],
             'max_results' => ['sometimes', 'integer', 'min:1', 'max:25'],
         ];
     }

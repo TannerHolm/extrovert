@@ -2,29 +2,23 @@
 
 namespace App\Services;
 
-use App\Contracts\PlatformSearchService;
 use App\Enums\Platform;
-use App\Support\InfluencerSearchResult;
 use App\Exceptions\PlatformSearchException;
-use Illuminate\Support\Facades\Cache;
+use App\Support\InfluencerSearchResult;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class InstagramSearchService implements PlatformSearchService
+class InstagramSearchService extends AbstractPlatformSearchService
 {
-    public function search(string $query, int $maxResults = 10): array
+    protected function cachePrefix(): string
     {
-        $cacheKey = 'instagram_search_'.md5($query.'_'.$maxResults);
-
-        return Cache::remember($cacheKey, now()->addMinutes(15), function () use ($query, $maxResults) {
-            return $this->performSearch($query, $maxResults);
-        });
+        return 'instagram';
     }
 
     /**
      * @return array<InfluencerSearchResult>
      */
-    private function performSearch(string $query, int $maxResults): array
+    protected function performSearch(string $query, int $maxResults): array
     {
         $apiKey = config('services.rapidapi.key');
         $host = config('services.rapidapi.instagram_host');
@@ -42,7 +36,7 @@ class InstagramSearchService implements PlatformSearchService
         ]);
 
         if ($searchResponse->failed()) {
-            Log::error('Instagram search failed', ['status' => $searchResponse->status(), 'body' => $searchResponse->body()]);
+            Log::error('Instagram search failed', ['status' => $searchResponse->status()]);
             throw new PlatformSearchException('Instagram search is temporarily unavailable. Please try again later.');
         }
 
