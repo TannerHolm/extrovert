@@ -14,13 +14,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { store } from '@/routes/influencers/lists';
+import type { InfluencerSearchResult } from '@/types';
 
 type Props = {
     preserveOnSuccess?: boolean;
+    influencer?: InfluencerSearchResult | null;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     preserveOnSuccess: false,
+    influencer: null,
 });
 
 const emit = defineEmits<{
@@ -37,15 +40,19 @@ const form = useForm({
 });
 
 function submit() {
-    form.post(store(page.props.currentTeam!.slug).url, {
-        preserveScroll: props.preserveOnSuccess,
-        preserveState: props.preserveOnSuccess,
-        onSuccess: () => {
-            open.value = false;
-            form.reset();
-            emit('created');
-        },
-    });
+    form
+        .transform((data) =>
+            props.influencer ? { ...data, influencer: props.influencer } : data,
+        )
+        .post(store(page.props.currentTeam!.slug).url, {
+            preserveScroll: props.preserveOnSuccess,
+            preserveState: props.preserveOnSuccess,
+            onSuccess: () => {
+                open.value = false;
+                form.reset();
+                emit('created');
+            },
+        });
 }
 </script>
 

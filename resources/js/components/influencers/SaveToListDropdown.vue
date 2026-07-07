@@ -78,5 +78,10 @@ function saveToList(listId: number) {
         </DropdownMenuContent>
     </DropdownMenu>
 
-    <CreateListModal v-model:open="showCreateModal" preserve-on-success />
+    <CreateListModal
+        v-model:open="showCreateModal"
+        :influencer="influencer"
+        preserve-on-success
+        @created="emit('saved')"
+    />
 </template>

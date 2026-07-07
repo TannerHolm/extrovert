@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Influencers;
 
+use App\Actions\Influencers\SaveInfluencerToList;
 use App\Enums\OutreachStatus;
 use App\Enums\TeamPermission;
 use App\Http\Controllers\Controller;
@@ -54,7 +55,15 @@ class InfluencerListController extends Controller
             403,
         );
 
-        $list = $team->influencerLists()->create($request->validated());
+        $list = $team->influencerLists()->create($request->safe()->only(['name', 'description']));
+
+        // When an influencer is included (e.g. "save to a new list" from Discover), add it and
+        // stay on the current page instead of navigating to the new list.
+        if ($request->has('influencer')) {
+            app(SaveInfluencerToList::class)->handle($list, $request->validated('influencer'), $request->user());
+
+            return back();
+        }
 
         return to_route('influencers.lists.show', [
             'current_team' => $team->slug,

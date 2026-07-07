@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Influencers;
 
+use App\Actions\Influencers\SaveInfluencerToList;
 use App\Enums\TeamPermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Influencers\SaveInfluencerToListRequest;
 use App\Http\Requests\Influencers\UpdateOutreachStatusRequest;
-use App\Models\Influencer;
 use App\Models\InfluencerList;
 use App\Models\InfluencerListEntry;
 use Illuminate\Http\RedirectResponse;
@@ -27,36 +27,7 @@ class InfluencerListEntryController extends Controller
             403,
         );
 
-        $validated = $request->validated();
-
-        // Upsert the influencer record
-        $influencer = Influencer::updateOrCreate(
-            [
-                'platform' => $validated['platform'],
-                'platform_id' => $validated['platform_id'],
-            ],
-            [
-                'handle' => $validated['handle'],
-                'profile_url' => $validated['profile_url'],
-                'display_name' => $validated['display_name'] ?? null,
-                'avatar_url' => $validated['avatar_url'] ?? null,
-                'follower_count' => $validated['follower_count'] ?? null,
-                'engagement_rate' => $validated['engagement_rate'] ?? null,
-                'contact_email' => $validated['contact_email'] ?? null,
-                'latest_activity_at' => $validated['latest_activity_at'] ?? null,
-            ],
-        );
-
-        // Create the pivot entry (ignore if already exists)
-        InfluencerListEntry::firstOrCreate(
-            [
-                'influencer_list_id' => $influencerList->id,
-                'influencer_id' => $influencer->id,
-            ],
-            [
-                'added_by' => $request->user()->id,
-            ],
-        );
+        app(SaveInfluencerToList::class)->handle($influencerList, $request->validated(), $request->user());
 
         return back();
     }

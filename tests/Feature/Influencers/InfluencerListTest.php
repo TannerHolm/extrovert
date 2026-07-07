@@ -3,6 +3,7 @@
 namespace Tests\Feature\Influencers;
 
 use App\Enums\TeamRole;
+use App\Models\Influencer;
 use App\Models\InfluencerList;
 use App\Models\InfluencerListEntry;
 use App\Models\Team;
@@ -56,6 +57,33 @@ class InfluencerListTest extends TestCase
         $this->assertDatabaseHas('influencer_lists', [
             'team_id' => $team->id,
             'name' => 'Summer Campaign',
+        ]);
+    }
+
+    public function test_creating_a_list_with_an_influencer_adds_the_influencer_to_it(): void
+    {
+        $user = User::factory()->create();
+        $team = $user->currentTeam;
+
+        $this->actingAs($user)
+            ->post(route('influencers.lists.store', ['current_team' => $team->slug]), [
+                'name' => 'Saved From Discover',
+                'influencer' => [
+                    'platform' => 'youtube',
+                    'platform_id' => 'UC777',
+                    'handle' => '@creator',
+                    'profile_url' => 'https://youtube.com/channel/UC777',
+                ],
+            ])
+            ->assertRedirect();
+
+        $list = InfluencerList::where(['team_id' => $team->id, 'name' => 'Saved From Discover'])->firstOrFail();
+        $influencer = Influencer::where('platform_id', 'UC777')->firstOrFail();
+
+        $this->assertDatabaseHas('influencer_list_entries', [
+            'influencer_list_id' => $list->id,
+            'influencer_id' => $influencer->id,
+            'added_by' => $user->id,
         ]);
     }
 
