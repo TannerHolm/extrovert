@@ -5,11 +5,15 @@ namespace Tests\Unit\Services;
 use App\Enums\Platform;
 use App\Exceptions\PlatformSearchException;
 use App\Services\YouTubeSearchService;
+use App\Support\InfluencerSearchResult;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class YouTubeSearchServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_it_maps_channels_into_search_results(): void
     {
         config(['services.youtube.api_key' => 'test-key']);
@@ -81,6 +85,39 @@ class YouTubeSearchServiceTest extends TestCase
         $this->expectException(PlatformSearchException::class);
 
         app(YouTubeSearchService::class)->search('cooking', 5);
+    }
+
+    public function test_results_survive_a_serialized_cache_round_trip(): void
+    {
+        // Reproduces the second-search 500: a persistent (serializing) cache store must
+        // hand back usable results, not incomplete objects.
+        config(['services.youtube.api_key' => 'test-key', 'cache.default' => 'database']);
+
+        Http::fake([
+            'www.googleapis.com/youtube/v3/search*' => Http::response([
+                'items' => [['id' => ['channelId' => 'UC123'], 'snippet' => ['channelId' => 'UC123', 'title' => 'Cool']]],
+            ]),
+            'www.googleapis.com/youtube/v3/channels*' => Http::response([
+                'items' => [[
+                    'id' => 'UC123',
+                    'snippet' => ['title' => 'Cool', 'customUrl' => '@cool'],
+                    'statistics' => ['subscriberCount' => '15000'],
+                    'brandingSettings' => ['channel' => []],
+                    'contentDetails' => ['relatedPlaylists' => []],
+                ]],
+            ]),
+            'www.googleapis.com/youtube/v3/*' => Http::response(['items' => []]),
+        ]);
+
+        $service = app(YouTubeSearchService::class);
+
+        $service->search('cooking', 5);        // populates the cache
+        $results = $service->search('cooking', 5); // reads it back
+
+        $this->assertInstanceOf(InfluencerSearchResult::class, $results[0]);
+        $this->assertSame(Platform::YouTube, $results[0]->platform);
+        $this->assertSame('UC123', $results[0]->platformId);
+        $this->assertSame('UC123', $results[0]->toArray()['platform_id']);
     }
 
     public function test_it_extracts_a_contact_email_from_the_channel_description(): void

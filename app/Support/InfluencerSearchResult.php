@@ -20,6 +20,27 @@ readonly class InfluencerSearchResult
     ) {}
 
     /**
+     * Rebuild a result from its array representation (e.g. a cached payload).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            platform: Platform::from($data['platform']),
+            platformId: $data['platform_id'],
+            handle: $data['handle'],
+            profileUrl: $data['profile_url'],
+            displayName: $data['display_name'] ?? null,
+            avatarUrl: $data['avatar_url'] ?? null,
+            followerCount: $data['follower_count'] ?? null,
+            engagementRate: $data['engagement_rate'] ?? null,
+            contactEmail: $data['contact_email'] ?? null,
+            latestActivityAt: $data['latest_activity_at'] ?? null,
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array
