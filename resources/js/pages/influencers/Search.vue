@@ -42,27 +42,42 @@ const loading = ref(false);
 const searched = ref(false);
 const error = ref('');
 
-const minFollowers = ref<number | undefined>();
-const maxFollowers = ref<number | undefined>();
-const minEngagement = ref<number | undefined>();
-const maxEngagement = ref<number | undefined>();
+// The Input component emits strings (it does not honour the v-model .number modifier),
+// so parse each filter to a finite number or treat it as unset.
+const minFollowers = ref<number | string | undefined>();
+const maxFollowers = ref<number | string | undefined>();
+const minEngagement = ref<number | string | undefined>();
+const maxEngagement = ref<number | string | undefined>();
 
-const hasActiveFilters = computed(
-    () =>
-        minFollowers.value !== undefined ||
-        maxFollowers.value !== undefined ||
-        minEngagement.value !== undefined ||
-        maxEngagement.value !== undefined,
+function toNumber(value: number | string | undefined): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+const activeFilters = computed(() => ({
+    minFollowers: toNumber(minFollowers.value),
+    maxFollowers: toNumber(maxFollowers.value),
+    minEngagement: toNumber(minEngagement.value),
+    maxEngagement: toNumber(maxEngagement.value),
+}));
+
+const hasActiveFilters = computed(() =>
+    Object.values(activeFilters.value).some((v) => v !== undefined),
 );
 
 const filteredResults = computed(() => {
     if (!hasActiveFilters.value) return results.value;
 
+    const f = activeFilters.value;
+
     return results.value.filter((r) => {
-        if (minFollowers.value !== undefined && (r.follower_count ?? 0) < minFollowers.value) return false;
-        if (maxFollowers.value !== undefined && (r.follower_count ?? 0) > maxFollowers.value) return false;
-        if (minEngagement.value !== undefined && (r.engagement_rate ?? 0) < minEngagement.value) return false;
-        if (maxEngagement.value !== undefined && (r.engagement_rate ?? 0) > maxEngagement.value) return false;
+        const followers = r.follower_count ?? 0;
+        const engagement = r.engagement_rate ?? 0;
+        if (f.minFollowers !== undefined && followers < f.minFollowers) return false;
+        if (f.maxFollowers !== undefined && followers > f.maxFollowers) return false;
+        if (f.minEngagement !== undefined && engagement < f.minEngagement) return false;
+        if (f.maxEngagement !== undefined && engagement > f.maxEngagement) return false;
         return true;
     });
 });
@@ -88,9 +103,14 @@ function clearFilters() {
     maxEngagement.value = undefined;
 }
 
+// Monotonic token so only the most recent search updates the UI — stale/overlapping
+// responses (e.g. a slow failure arriving after a newer success) are ignored.
+let searchSeq = 0;
+
 async function performSearch() {
     if (!query.value.trim()) return;
 
+    const seq = ++searchSeq;
     loading.value = true;
     searched.value = true;
     error.value = '';
@@ -115,15 +135,18 @@ async function performSearch() {
 
         const data = await response.json();
 
+        if (seq !== searchSeq) return;
+
         if (!response.ok) {
             throw new Error(data.error || `Search failed: ${response.statusText}`);
         }
 
         results.value = data.results || [];
     } catch (e) {
+        if (seq !== searchSeq) return;
         error.value = e instanceof Error ? e.message : 'Search failed. Please try again.';
     } finally {
-        loading.value = false;
+        if (seq === searchSeq) loading.value = false;
     }
 }
 </script>
@@ -135,7 +158,7 @@ async function performSearch() {
         <Heading
             variant="small"
             title="Discover Influencers"
-            description="Search for content creators across YouTube, Instagram, and TikTok"
+            description="Search for content creators on YouTube"
         />
 
         <form @submit.prevent="performSearch" class="space-y-4">
@@ -164,7 +187,6 @@ async function performSearch() {
                     type="search"
                     placeholder="Search by keyword, niche, or topic..."
                     class="flex-1"
-                    @keyup.enter="performSearch"
                 />
                 <Button type="submit" :disabled="loading || !query.trim()">
                     <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
