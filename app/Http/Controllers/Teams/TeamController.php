@@ -53,6 +53,9 @@ class TeamController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
                 'isPersonal' => $team->is_personal,
+                'sendingFromEmail' => $team->sending_from_email,
+                'sendingFromName' => $team->sending_from_name,
+                'sendingDomainVerified' => $team->hasVerifiedSendingDomain(),
             ],
             'members' => $team->members()->get()->map(fn ($member) => [
                 'id' => $member->id,

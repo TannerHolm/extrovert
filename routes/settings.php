@@ -5,6 +5,7 @@ use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Teams\TeamMemberController;
+use App\Http\Controllers\Teams\TeamSendingDomainController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(EnsureTeamMembership::class)->group(function () {
         Route::get('settings/teams/{team}', [TeamController::class, 'edit'])->name('teams.edit');
         Route::patch('settings/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
+        Route::patch('settings/teams/{team}/sending', [TeamSendingDomainController::class, 'update'])->name('teams.sending.update');
         Route::delete('settings/teams/{team}', [TeamController::class, 'destroy'])->name('teams.destroy');
         Route::post('settings/teams/{team}/switch', [TeamController::class, 'switch'])->name('teams.switch');
 

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'slug', 'is_personal'])]
+#[Fillable(['name', 'slug', 'is_personal', 'sending_from_email', 'sending_from_name', 'sending_domain_verified_at'])]
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
@@ -100,7 +100,31 @@ class Team extends Model
     {
         return [
             'is_personal' => 'boolean',
+            'sending_domain_verified_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Whether this team has a verified custom sending domain.
+     */
+    public function hasVerifiedSendingDomain(): bool
+    {
+        return $this->sending_from_email !== null && $this->sending_domain_verified_at !== null;
+    }
+
+    /**
+     * The From identity outreach should send as: the team's verified sender when
+     * available, otherwise the application default (which is always deliverable).
+     *
+     * @return array{address: string, name: string|null}
+     */
+    public function sendingFrom(): array
+    {
+        if ($this->hasVerifiedSendingDomain()) {
+            return ['address' => $this->sending_from_email, 'name' => $this->sending_from_name];
+        }
+
+        return ['address' => config('mail.from.address'), 'name' => config('mail.from.name')];
     }
 
     /**

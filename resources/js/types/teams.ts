@@ -8,6 +8,9 @@ export type Team = {
     role?: TeamRole;
     roleLabel?: string;
     isCurrent?: boolean;
+    sendingFromEmail?: string | null;
+    sendingFromName?: string | null;
+    sendingDomainVerified?: boolean;
 };
 
 export type TeamMember = {

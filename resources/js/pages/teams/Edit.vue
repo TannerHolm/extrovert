@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, router } from '@inertiajs/vue3';
+import { Form, Head, router, useForm } from '@inertiajs/vue3';
 import { ChevronDown, Mail, UserPlus, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import CancelInvitationModal from '@/components/CancelInvitationModal.vue';
@@ -28,6 +28,7 @@ import {
 import { useInitials } from '@/composables/useInitials';
 import { edit, index, update } from '@/routes/teams';
 import { update as updateMember } from '@/routes/teams/members';
+import { update as updateSendingDomain } from '@/routes/teams/sending';
 import type {
     RoleOption,
     Team,
@@ -75,6 +76,17 @@ const pageTitle = computed(() =>
         ? `Edit ${props.team.name}`
         : `View ${props.team.name}`,
 );
+
+const sendingForm = useForm({
+    sending_from_email: props.team.sendingFromEmail ?? '',
+    sending_from_name: props.team.sendingFromName ?? '',
+});
+
+const saveSendingDomain = () => {
+    sendingForm.patch(updateSendingDomain(props.team.slug).url, {
+        preserveScroll: true,
+    });
+};
 
 const updateMemberRole = (member: TeamMember, newRole: string) => {
     router.visit(updateMember([props.team.slug, member.id]), {
@@ -153,6 +165,91 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
 
         <div v-else class="space-y-6">
             <Heading variant="small" :title="team.name" />
+        </div>
+
+        <!-- Sending Domain Section -->
+        <div v-if="permissions.canUpdateTeam" class="space-y-6">
+            <Heading
+                variant="small"
+                title="Outreach sending domain"
+                description="The address your team's outreach emails are sent from. Replies go to the sender."
+            />
+
+            <div class="flex items-center gap-2">
+                <Badge
+                    v-if="team.sendingDomainVerified"
+                    variant="outline"
+                    class="border-green-500/40 text-green-600 dark:text-green-400"
+                >
+                    Verified
+                </Badge>
+                <Badge
+                    v-else-if="team.sendingFromEmail"
+                    variant="outline"
+                    class="border-amber-500/40 text-amber-600 dark:text-amber-400"
+                >
+                    Pending verification
+                </Badge>
+                <Badge v-else variant="outline">Not configured</Badge>
+                <span class="text-sm text-muted-foreground">
+                    {{
+                        team.sendingDomainVerified
+                            ? 'Outreach sends from your domain.'
+                            : 'Outreach sends from the app default until your domain is verified.'
+                    }}
+                </span>
+            </div>
+
+            <form @submit.prevent="saveSendingDomain" class="space-y-6">
+                <div class="grid gap-2">
+                    <Label for="sending_from_name">From name</Label>
+                    <Input
+                        id="sending_from_name"
+                        v-model="sendingForm.sending_from_name"
+                        placeholder="Freedom Fuel"
+                    />
+                    <InputError
+                        :message="sendingForm.errors.sending_from_name"
+                    />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="sending_from_email">From email</Label>
+                    <Input
+                        id="sending_from_email"
+                        v-model="sendingForm.sending_from_email"
+                        type="email"
+                        placeholder="outreach@yourdomain.com"
+                    />
+                    <InputError
+                        :message="sendingForm.errors.sending_from_email"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        After saving, add this domain to your mail provider and
+                        set its DNS records; an admin then marks it verified.
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <Button type="submit" :disabled="sendingForm.processing"
+                        >Save</Button
+                    >
+
+                    <Transition
+                        enter-active-class="transition ease-in-out"
+                        enter-from-class="opacity-0"
+                        leave-active-class="transition ease-in-out"
+                        leave-to-class="opacity-0"
+                    >
+                        <p
+                            v-show="sendingForm.recentlySuccessful"
+                            class="text-sm text-neutral-600"
+                        >
+                            Saved.
+                        </p>
+                    </Transition>
+                </div>
+            </form>
         </div>
 
         <!-- Members Section -->

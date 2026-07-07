@@ -22,18 +22,21 @@ class SendOutreachEmail
     public function handle(InfluencerListEntry $entry, User $sender, string $subject, string $body): OutreachMessage
     {
         $toEmail = $entry->influencer->contact_email;
+        $from = $entry->influencerList->team->sendingFrom();
 
         Mail::to($toEmail)->send(new OutreachEmail(
             subjectLine: $subject,
             bodyText: $body,
+            fromEmail: $from['address'],
             replyToEmail: $sender->email,
+            fromName: $from['name'] ?? '',
             replyToName: $sender->name,
         ));
 
         $message = $entry->messages()->create([
             'user_id' => $sender->id,
             'direction' => OutreachMessage::DIRECTION_OUTBOUND,
-            'from_email' => config('mail.from.address'),
+            'from_email' => $from['address'],
             'to_email' => $toEmail,
             'subject' => $subject,
             'body' => $body,
