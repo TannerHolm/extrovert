@@ -107,10 +107,20 @@ class InfluencerListController extends Controller
                 'contact_email' => $entry->influencer->contact_email,
                 'latest_activity_at' => $entry->influencer->latest_activity_at?->toISOString(),
             ],
+            'messages' => $entry->messages->map(fn ($message) => [
+                'id' => $message->id,
+                'direction' => $message->direction,
+                'subject' => $message->subject,
+                'body' => $message->body,
+                'from_email' => $message->from_email,
+                'to_email' => $message->to_email,
+                'sent_by' => $message->user?->name,
+                'sent_at' => $message->sent_at?->toISOString(),
+            ])->all(),
         ];
 
         $query = $influencerList->entries()
-            ->with('influencer', 'addedBy')
+            ->with('influencer', 'addedBy', 'messages.user')
             ->when($status && $status !== 'all', fn ($q) => $q->where('outreach_status', $status))
             ->orderByDesc('created_at');
 

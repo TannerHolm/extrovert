@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'influencer_list_id',
@@ -43,6 +44,16 @@ class InfluencerListEntry extends Model
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    /**
+     * The outreach message thread for this entry, oldest first.
+     *
+     * @return HasMany<OutreachMessage, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(OutreachMessage::class)->orderBy('created_at');
     }
 
     /**

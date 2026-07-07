@@ -11,6 +11,7 @@ const props = defineProps<{
     entries: InfluencerListEntry[];
     outreachStatuses: OutreachStatusOption[];
     canManage: boolean;
+    listId: number;
 }>();
 
 const emit = defineEmits<{
@@ -160,6 +161,9 @@ const statusBgColors: Record<string, string> = {
                                 :influencer-handle="entry.influencer.handle"
                                 :influencer-email="entry.influencer.contact_email"
                                 :platform="entry.influencer.platform_label"
+                                :list-id="listId"
+                                :entry-id="entry.id"
+                                :messages="entry.messages"
                             >
                                 <button
                                     :disabled="!entry.influencer.contact_email"

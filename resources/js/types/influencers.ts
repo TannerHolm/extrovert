@@ -55,6 +55,17 @@ export type SavedInfluencer = {
     latest_activity_at: string | null;
 };
 
+export type OutreachMessage = {
+    id: number;
+    direction: 'outbound' | 'inbound';
+    subject: string;
+    body: string;
+    from_email: string;
+    to_email: string;
+    sent_by: string | null;
+    sent_at: string | null;
+};
+
 export type InfluencerListEntry = {
     id: number;
     outreach_status: OutreachStatus;
@@ -64,6 +75,7 @@ export type InfluencerListEntry = {
     added_by: { id: number; name: string } | null;
     created_at: string;
     influencer: SavedInfluencer;
+    messages: OutreachMessage[];
 };
 
 export type Paginator<T> = {

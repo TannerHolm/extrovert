@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Influencers\InfluencerListController;
 use App\Http\Controllers\Influencers\InfluencerListEntryController;
 use App\Http\Controllers\Influencers\InfluencerSearchController;
+use App\Http\Controllers\Influencers\OutreachEmailController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,9 @@ Route::prefix('{current_team}')
         Route::post('influencers/lists/{influencerList}/entries', [InfluencerListEntryController::class, 'store'])->name('influencers.entries.store');
         Route::patch('influencers/lists/{influencerList}/entries/{entry}', [InfluencerListEntryController::class, 'update'])->name('influencers.entries.update');
         Route::delete('influencers/lists/{influencerList}/entries/{entry}', [InfluencerListEntryController::class, 'destroy'])->name('influencers.entries.destroy');
+
+        // Outreach emails (send + logged thread)
+        Route::post('influencers/lists/{influencerList}/entries/{entry}/emails', [OutreachEmailController::class, 'store'])->name('influencers.entries.emails.store');
     });
 
 Route::middleware(['auth', 'verified'])->group(function () {

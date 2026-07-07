@@ -183,6 +183,7 @@ function removeEntry(entryId: number) {
             :entries="allEntries"
             :outreach-statuses="outreachStatuses"
             :can-manage="canManage"
+            :list-id="list.id"
             @update-status="updateStatus"
         />
 
@@ -192,6 +193,7 @@ function removeEntry(entryId: number) {
             :entries="allEntries"
             :outreach-statuses="outreachStatuses"
             :can-manage="canManage"
+            :list-id="list.id"
             @update-status="updateStatus"
             @remove="removeEntry"
             @save-notes="saveNotes"

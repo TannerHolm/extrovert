@@ -21,6 +21,7 @@ defineProps<{
     entries: InfluencerListEntry[];
     outreachStatuses: OutreachStatusOption[];
     canManage: boolean;
+    listId: number;
 }>();
 
 const emit = defineEmits<{
@@ -89,6 +90,9 @@ function saveNotes(entryId: number) {
                         :influencer-handle="entry.influencer.handle"
                         :influencer-email="entry.influencer.contact_email"
                         :platform="entry.influencer.platform_label"
+                        :list-id="listId"
+                        :entry-id="entry.id"
+                        :messages="entry.messages"
                     />
                     <div v-if="canManage">
                         <Select
@@ -144,6 +148,10 @@ function saveNotes(entryId: number) {
                 </div>
                 <div v-if="entry.added_by">
                     Added by {{ entry.added_by.name }}
+                </div>
+                <div v-if="entry.messages.length > 0" class="flex items-center gap-1">
+                    <Mail class="h-3.5 w-3.5" />
+                    {{ entry.messages.length }} email{{ entry.messages.length !== 1 ? 's' : '' }}
                 </div>
             </div>
 
