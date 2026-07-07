@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\OutreachStatus;
+use Database\Factories\InfluencerListEntryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -16,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class InfluencerListEntry extends Model
 {
+    /** @use HasFactory<InfluencerListEntryFactory> */
+    use HasFactory;
+
     /**
      * @return BelongsTo<InfluencerList, $this>
      */

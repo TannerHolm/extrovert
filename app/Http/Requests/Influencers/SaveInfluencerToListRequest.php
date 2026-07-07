@@ -28,7 +28,7 @@ class SaveInfluencerToListRequest extends FormRequest
             'follower_count' => ['nullable', 'integer', 'min:0'],
             'engagement_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'contact_email' => ['nullable', 'email', 'max:255'],
-            'latest_activity_at' => ['nullable', 'string'],
+            'latest_activity_at' => ['nullable', 'date'],
         ];
     }
 }

@@ -20,7 +20,9 @@ Route::prefix('{current_team}')
 
         // Influencer Discovery
         Route::get('influencers/search', [InfluencerSearchController::class, 'index'])->name('influencers.search');
-        Route::get('influencers/search/results', [InfluencerSearchController::class, 'search'])->name('influencers.search.results');
+        Route::get('influencers/search/results', [InfluencerSearchController::class, 'search'])
+            ->middleware('throttle:30,1')
+            ->name('influencers.search.results');
 
         // Influencer Lists
         Route::get('influencers/lists', [InfluencerListController::class, 'index'])->name('influencers.lists.index');
@@ -35,7 +37,7 @@ Route::prefix('{current_team}')
         Route::delete('influencers/lists/{influencerList}/entries/{entry}', [InfluencerListEntryController::class, 'destroy'])->name('influencers.entries.destroy');
     });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('invitations/{invitation}/accept', [TeamInvitationController::class, 'accept'])->name('invitations.accept');
 });
 

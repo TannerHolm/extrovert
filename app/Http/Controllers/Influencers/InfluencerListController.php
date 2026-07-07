@@ -15,6 +15,11 @@ use Inertia\Response;
 class InfluencerListController extends Controller
 {
     /**
+     * Maximum number of entries rendered on the kanban board in a single request.
+     */
+    private const KANBAN_ENTRY_LIMIT = 200;
+
+    /**
      * Display all influencer lists for the current team.
      */
     public function index(Request $request): Response
@@ -60,10 +65,9 @@ class InfluencerListController extends Controller
     /**
      * Display a specific influencer list with its entries.
      */
-    public function show(Request $request, string $influencerList): Response
+    public function show(Request $request, InfluencerList $influencerList): Response
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
 
@@ -102,9 +106,29 @@ class InfluencerListController extends Controller
             ->orderByDesc('created_at');
 
         if ($view === 'kanban') {
-            $entries = $query->get()->map($mapEntry)->values();
+            // Cap the kanban board to avoid loading an unbounded number of entries into memory.
+            $entries = $query->limit(self::KANBAN_ENTRY_LIMIT)->get()->map($mapEntry)->values();
         } else {
-            $entries = $query->paginate(25)->through($mapEntry);
+            $paginator = $query->paginate(25)->through($mapEntry);
+
+            // Shape the paginator as { data, links, meta } to match the frontend Paginator<T> type.
+            $entries = [
+                'data' => $paginator->items(),
+                'links' => [
+                    'first' => $paginator->url(1),
+                    'last' => $paginator->url($paginator->lastPage()),
+                    'prev' => $paginator->previousPageUrl(),
+                    'next' => $paginator->nextPageUrl(),
+                ],
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'from' => $paginator->firstItem(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'to' => $paginator->lastItem(),
+                    'total' => $paginator->total(),
+                ],
+            ];
         }
 
         return Inertia::render('influencers/ListShow', [
@@ -128,10 +152,9 @@ class InfluencerListController extends Controller
     /**
      * Update an influencer list.
      */
-    public function update(SaveInfluencerListRequest $request, string $influencerList): RedirectResponse
+    public function update(SaveInfluencerListRequest $request, InfluencerList $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(
@@ -147,10 +170,9 @@ class InfluencerListController extends Controller
     /**
      * Delete an influencer list.
      */
-    public function destroy(Request $request, string $influencerList): RedirectResponse
+    public function destroy(Request $request, InfluencerList $influencerList): RedirectResponse
     {
         $team = $request->user()->currentTeam;
-        $influencerList = InfluencerList::findOrFail($influencerList);
 
         abort_unless($influencerList->team_id === $team->id, 404);
         abort_unless(

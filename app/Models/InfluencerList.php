@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Database\Factories\InfluencerListFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['team_id', 'name', 'description'])]
 class InfluencerList extends Model
 {
+    /** @use HasFactory<InfluencerListFactory> */
+    use HasFactory;
+
     /**
      * @return BelongsTo<Team, $this>
      */

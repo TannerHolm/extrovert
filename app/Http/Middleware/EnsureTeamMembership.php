@@ -28,6 +28,10 @@ class EnsureTeamMembership
             $user->switchTeam($team);
         }
 
+        // The team slug is resolved from the route prefix and consumed here; drop it so it
+        // does not shift the positional route-parameter binding for controller arguments.
+        $request->route()?->forgetParameter('current_team');
+
         return $next($request);
     }
 

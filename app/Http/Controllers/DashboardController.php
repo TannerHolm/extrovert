@@ -13,35 +13,29 @@ class DashboardController extends Controller
     {
         $team = $request->user()->currentTeam;
 
-        $listIds = $team->influencerLists()->pluck('id');
-
-        // Count entries per outreach status across all lists
-        $statusCounts = [];
-        foreach (OutreachStatus::cases() as $status) {
-            $statusCounts[] = [
-                'value' => $status->value,
-                'label' => $status->label(),
-                'color' => $status->color(),
-                'count' => $team->influencerLists()
-                    ->join('influencer_list_entries', 'influencer_lists.id', '=', 'influencer_list_entries.influencer_list_id')
-                    ->where('influencer_list_entries.outreach_status', $status->value)
-                    ->count(),
-            ];
-        }
-
-        $totalInfluencers = $team->influencerLists()
+        // Count entries per outreach status across all lists in a single grouped query.
+        $countsByStatus = $team->influencerLists()
             ->join('influencer_list_entries', 'influencer_lists.id', '=', 'influencer_list_entries.influencer_list_id')
-            ->count();
+            ->groupBy('influencer_list_entries.outreach_status')
+            ->selectRaw('influencer_list_entries.outreach_status as status, count(*) as aggregate')
+            ->pluck('aggregate', 'status');
 
-        $activeOutreach = $team->influencerLists()
-            ->join('influencer_list_entries', 'influencer_lists.id', '=', 'influencer_list_entries.influencer_list_id')
-            ->whereIn('influencer_list_entries.outreach_status', ['contacted', 'replied', 'negotiating'])
-            ->count();
+        $statusCounts = collect(OutreachStatus::cases())->map(fn (OutreachStatus $status) => [
+            'value' => $status->value,
+            'label' => $status->label(),
+            'color' => $status->color(),
+            'count' => (int) $countsByStatus->get($status->value, 0),
+        ])->all();
 
-        $confirmedPartners = $team->influencerLists()
-            ->join('influencer_list_entries', 'influencer_lists.id', '=', 'influencer_list_entries.influencer_list_id')
-            ->where('influencer_list_entries.outreach_status', 'confirmed')
-            ->count();
+        $totalInfluencers = (int) $countsByStatus->sum();
+
+        $activeOutreach = (int) collect([
+            OutreachStatus::Contacted,
+            OutreachStatus::Replied,
+            OutreachStatus::Negotiating,
+        ])->sum(fn (OutreachStatus $status) => $countsByStatus->get($status->value, 0));
+
+        $confirmedPartners = (int) $countsByStatus->get(OutreachStatus::Confirmed->value, 0);
 
         // Recent entries with influencer data
         $recentEntries = $team->influencerLists()
@@ -62,19 +56,23 @@ class DashboardController extends Controller
             ->orderByDesc('influencer_list_entries.created_at')
             ->limit(10)
             ->get()
-            ->map(fn ($entry) => [
-                'id' => $entry->id,
-                'outreach_status' => $entry->outreach_status,
-                'outreach_status_label' => OutreachStatus::from($entry->outreach_status)->label(),
-                'outreach_status_color' => OutreachStatus::from($entry->outreach_status)->color(),
-                'created_at' => $entry->created_at,
-                'display_name' => $entry->display_name,
-                'handle' => $entry->handle,
-                'avatar_url' => $entry->avatar_url,
-                'platform' => $entry->platform,
-                'list_name' => $entry->list_name,
-                'added_by_name' => $entry->added_by_name,
-            ]);
+            ->map(function ($entry) {
+                $status = OutreachStatus::tryFrom($entry->outreach_status) ?? OutreachStatus::None;
+
+                return [
+                    'id' => $entry->id,
+                    'outreach_status' => $status->value,
+                    'outreach_status_label' => $status->label(),
+                    'outreach_status_color' => $status->color(),
+                    'created_at' => $entry->created_at,
+                    'display_name' => $entry->display_name,
+                    'handle' => $entry->handle,
+                    'avatar_url' => $entry->avatar_url,
+                    'platform' => $entry->platform,
+                    'list_name' => $entry->list_name,
+                    'added_by_name' => $entry->added_by_name,
+                ];
+            });
 
         return Inertia::render('Dashboard', [
             'metrics' => [
