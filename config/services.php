@@ -45,4 +45,8 @@ return [
         'tiktok_host' => env('RAPIDAPI_TIKTOK_HOST', 'tiktok-scraper10.p.rapidapi.com'),
     ],
 
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
+    ],
+
 ];
