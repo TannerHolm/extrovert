@@ -2,10 +2,17 @@
 import { Head, usePage } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight, Filter, Loader2, Search as SearchIcon, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
-import InfluencerCard from '@/components/influencers/InfluencerCard.vue';
 import Heading from '@/components/Heading.vue';
+import InfluencerCard from '@/components/influencers/InfluencerCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { search as searchRoute } from '@/routes/influencers';
 import { results as resultsRoute } from '@/routes/influencers/search';
 import type {
@@ -50,8 +57,12 @@ const minEngagement = ref<number | string | undefined>();
 const maxEngagement = ref<number | string | undefined>();
 
 function toNumber(value: number | string | undefined): number | undefined {
-    if (value === undefined || value === null || value === '') return undefined;
+    if (value === undefined || value === null || value === '') {
+return undefined;
+}
+
     const parsed = Number(value);
+
     return Number.isFinite(parsed) ? parsed : undefined;
 }
 
@@ -66,19 +77,56 @@ const hasActiveFilters = computed(() =>
     Object.values(activeFilters.value).some((v) => v !== undefined),
 );
 
-const filteredResults = computed(() => {
-    if (!hasActiveFilters.value) return results.value;
+type SortOption = 'relevance' | 'recent' | 'followers' | 'engagement';
+const sortBy = ref<SortOption>('relevance');
 
+const filteredResults = computed(() => {
     const f = activeFilters.value;
 
-    return results.value.filter((r) => {
-        const followers = r.follower_count ?? 0;
-        const engagement = r.engagement_rate ?? 0;
-        if (f.minFollowers !== undefined && followers < f.minFollowers) return false;
-        if (f.maxFollowers !== undefined && followers > f.maxFollowers) return false;
-        if (f.minEngagement !== undefined && engagement < f.minEngagement) return false;
-        if (f.maxEngagement !== undefined && engagement > f.maxEngagement) return false;
-        return true;
+    const filtered = hasActiveFilters.value
+        ? results.value.filter((r) => {
+              const followers = r.follower_count ?? 0;
+              const engagement = r.engagement_rate ?? 0;
+
+              if (f.minFollowers !== undefined && followers < f.minFollowers) {
+return false;
+}
+
+              if (f.maxFollowers !== undefined && followers > f.maxFollowers) {
+return false;
+}
+
+              if (f.minEngagement !== undefined && engagement < f.minEngagement) {
+return false;
+}
+
+              if (f.maxEngagement !== undefined && engagement > f.maxEngagement) {
+return false;
+}
+
+              return true;
+          })
+        : results.value;
+
+    if (sortBy.value === 'relevance') {
+return filtered;
+}
+
+    // Copy before sorting so we don't mutate the source order the API returned.
+    return [...filtered].sort((a, b) => {
+        if (sortBy.value === 'followers') {
+            return (b.follower_count ?? 0) - (a.follower_count ?? 0);
+        }
+
+        if (sortBy.value === 'engagement') {
+            return (b.engagement_rate ?? 0) - (a.engagement_rate ?? 0);
+        }
+
+        // 'recent' — newest activity first; unknown dates sink to the bottom.
+        const at = a.latest_activity_at ? Date.parse(a.latest_activity_at) : -Infinity;
+        const bt = b.latest_activity_at ? Date.parse(b.latest_activity_at) : -Infinity;
+
+        return bt - at;
     });
 });
 
@@ -88,11 +136,12 @@ const perPage = 9; // 3x3 grid
 const totalPages = computed(() => Math.ceil(filteredResults.value.length / perPage));
 const paginatedResults = computed(() => {
     const start = (currentPage.value - 1) * perPage;
+
     return filteredResults.value.slice(start, start + perPage);
 });
 
-// Reset to page 1 when filters change
-watch([minFollowers, maxFollowers, minEngagement, maxEngagement], () => {
+// Reset to page 1 when filters or sort change
+watch([minFollowers, maxFollowers, minEngagement, maxEngagement, sortBy], () => {
     currentPage.value = 1;
 });
 
@@ -108,7 +157,9 @@ function clearFilters() {
 let searchSeq = 0;
 
 async function performSearch() {
-    if (!query.value.trim()) return;
+    if (!query.value.trim()) {
+return;
+}
 
     const seq = ++searchSeq;
     loading.value = true;
@@ -135,7 +186,9 @@ async function performSearch() {
 
         const data = await response.json();
 
-        if (seq !== searchSeq) return;
+        if (seq !== searchSeq) {
+return;
+}
 
         if (!response.ok) {
             throw new Error(data.error || `Search failed: ${response.statusText}`);
@@ -143,10 +196,15 @@ async function performSearch() {
 
         results.value = data.results || [];
     } catch (e) {
-        if (seq !== searchSeq) return;
+        if (seq !== searchSeq) {
+return;
+}
+
         error.value = e instanceof Error ? e.message : 'Search failed. Please try again.';
     } finally {
-        if (seq === searchSeq) loading.value = false;
+        if (seq === searchSeq) {
+loading.value = false;
+}
     }
 }
 </script>
@@ -259,7 +317,25 @@ async function performSearch() {
                 Clear
             </Button>
 
-            <span v-if="hasActiveFilters" class="ml-auto text-xs text-muted-foreground">
+            <div class="ml-auto flex flex-col gap-1">
+                <label class="text-xs text-muted-foreground">Sort by</label>
+                <Select
+                    :model-value="sortBy"
+                    @update:model-value="(v) => (sortBy = v as SortOption)"
+                >
+                    <SelectTrigger class="h-8 w-44">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="relevance">Relevance</SelectItem>
+                        <SelectItem value="recent">Most recently active</SelectItem>
+                        <SelectItem value="followers">Most followers</SelectItem>
+                        <SelectItem value="engagement">Highest engagement</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <span v-if="hasActiveFilters" class="text-xs text-muted-foreground">
                 Showing {{ filteredResults.length }} of {{ results.length }} results
             </span>
         </div>

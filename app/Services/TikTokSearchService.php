@@ -56,6 +56,7 @@ class TikTokSearchService extends AbstractPlatformSearchService
 
             $followerCount = $stats['follower_count'] ?? $stats['followerCount'] ?? $user['follower_count'] ?? null;
             $engagementRate = null;
+            $latestActivityAt = null;
 
             // Calculate engagement from stats if available
             if ($followerCount && $followerCount > 0) {
@@ -65,8 +66,11 @@ class TikTokSearchService extends AbstractPlatformSearchService
                 if ($avgLikes !== null && $avgComments !== null) {
                     $engagementRate = round((($avgLikes + $avgComments) / $followerCount) * 100, 2);
                 } else {
-                    // Try to get engagement from recent posts
-                    $engagementRate = $this->getEngagementFromPosts($username, $followerCount, $apiKey, $host);
+                    // Fetching recent posts is a paid call, so pull engagement and the
+                    // most recent post date from the same request rather than two.
+                    $posts = $this->analyzeRecentPosts($username, $followerCount, $apiKey, $host);
+                    $engagementRate = $posts['rate'];
+                    $latestActivityAt = $posts['latestPostAt'];
                 }
             }
 
@@ -80,12 +84,17 @@ class TikTokSearchService extends AbstractPlatformSearchService
                 followerCount: $followerCount ? (int) $followerCount : null,
                 engagementRate: $engagementRate,
                 contactEmail: null, // TikTok doesn't expose email via API
-                latestActivityAt: null,
+                latestActivityAt: $latestActivityAt,
             );
         })->filter()->values()->all();
     }
 
-    private function getEngagementFromPosts(string $username, int $followerCount, string $apiKey, string $host): ?float
+    /**
+     * Sample recent posts to estimate engagement rate and find the most recent post date.
+     *
+     * @return array{rate: float|null, latestPostAt: string|null}
+     */
+    private function analyzeRecentPosts(string $username, int $followerCount, string $apiKey, string $host): array
     {
         $response = Http::withHeaders([
             'x-rapidapi-key' => $apiKey,
@@ -96,17 +105,18 @@ class TikTokSearchService extends AbstractPlatformSearchService
         ]);
 
         if ($response->failed()) {
-            return null;
+            return ['rate' => null, 'latestPostAt' => null];
         }
 
         $posts = $response->json('data.videos', $response->json('data', []));
 
         if (empty($posts)) {
-            return null;
+            return ['rate' => null, 'latestPostAt' => null];
         }
 
         $totalEngagement = 0;
         $count = 0;
+        $latestCreatedAt = null;
 
         foreach ($posts as $post) {
             $stats = $post['stats'] ?? $post;
@@ -114,14 +124,23 @@ class TikTokSearchService extends AbstractPlatformSearchService
             $comments = $stats['comment_count'] ?? $stats['commentCount'] ?? $stats['comments'] ?? 0;
             $totalEngagement += $likes + $comments;
             $count++;
+
+            // TikTok exposes post timestamps as a Unix epoch under create_time.
+            $createTime = (int) ($post['create_time'] ?? $post['createTime'] ?? 0);
+            if ($createTime > 0 && ($latestCreatedAt === null || $createTime > $latestCreatedAt)) {
+                $latestCreatedAt = $createTime;
+            }
         }
 
         if ($count === 0) {
-            return null;
+            return ['rate' => null, 'latestPostAt' => null];
         }
 
         $avgEngagement = $totalEngagement / $count;
 
-        return round(($avgEngagement / $followerCount) * 100, 2);
+        return [
+            'rate' => round(($avgEngagement / $followerCount) * 100, 2),
+            'latestPostAt' => $latestCreatedAt !== null ? date('c', $latestCreatedAt) : null,
+        ];
     }
 }

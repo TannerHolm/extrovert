@@ -95,7 +95,7 @@ class InstagramSearchService extends AbstractPlatformSearchService
 
         // Try to extract recent posts for engagement calculation
         $recentPosts = [];
-        $latestPostDate = null;
+        $latestTimestamp = null;
 
         if (isset($data['edge_owner_to_timeline_media']['edges'])) {
             foreach (array_slice($data['edge_owner_to_timeline_media']['edges'], 0, 12) as $edge) {
@@ -104,11 +104,15 @@ class InstagramSearchService extends AbstractPlatformSearchService
                 $comments = $node['edge_media_to_comment']['count'] ?? $node['comment_count'] ?? 0;
                 $recentPosts[] = ['likes' => $likes, 'comments' => $comments];
 
-                if (! $latestPostDate && isset($node['taken_at_timestamp'])) {
-                    $latestPostDate = date('c', $node['taken_at_timestamp']);
+                // Posts aren't guaranteed to arrive newest-first, so track the max timestamp.
+                $takenAt = (int) ($node['taken_at_timestamp'] ?? 0);
+                if ($takenAt > 0 && ($latestTimestamp === null || $takenAt > $latestTimestamp)) {
+                    $latestTimestamp = $takenAt;
                 }
             }
         }
+
+        $latestPostDate = $latestTimestamp !== null ? date('c', $latestTimestamp) : null;
 
         return [
             'full_name' => $data['full_name'] ?? null,

@@ -102,15 +102,18 @@ class YouTubeSearchService extends AbstractPlatformSearchService
                 followerCount: $subscriberCount,
                 engagementRate: $videoAnalysis[$channelId]['rate'] ?? null,
                 contactEmail: $contactEmail,
-                latestActivityAt: $snippet['publishedAt'] ?? null,
+                // The date of the channel's most recent upload — not `snippet.publishedAt`,
+                // which is the channel *creation* date and makes dormant channels look active.
+                latestActivityAt: $videoAnalysis[$channelId]['latestVideoAt'] ?? null,
             );
         })->filter()->values()->all();
     }
 
     /**
-     * Sample recent videos per channel to estimate engagement rate and find a listed contact email.
+     * Sample recent videos per channel to estimate engagement rate, find a listed contact
+     * email, and determine when the channel most recently uploaded.
      *
-     * @return array<string, array{rate: float|null, email: string|null}>
+     * @return array<string, array{rate: float|null, email: string|null, latestVideoAt: string|null}>
      */
     private function analyzeRecentVideos($channels, string $apiKey): array
     {
@@ -160,6 +163,7 @@ class YouTubeSearchService extends AbstractPlatformSearchService
             $totalEngagement = 0;
             $videoCount = 0;
             $email = null;
+            $latestVideoAt = null;
 
             foreach ($videos as $video) {
                 $likes = (int) ($video['statistics']['likeCount'] ?? 0);
@@ -168,6 +172,12 @@ class YouTubeSearchService extends AbstractPlatformSearchService
                 $videoCount++;
 
                 $email ??= $this->extractEmail($video['snippet']['description'] ?? '');
+
+                // Uploads aren't guaranteed to come back newest-first, so track the max.
+                $publishedAt = $video['snippet']['publishedAt'] ?? null;
+                if ($publishedAt && ($latestVideoAt === null || $publishedAt > $latestVideoAt)) {
+                    $latestVideoAt = $publishedAt;
+                }
             }
 
             $rate = null;
@@ -175,7 +185,7 @@ class YouTubeSearchService extends AbstractPlatformSearchService
                 $rate = round(($totalEngagement / $videoCount / $subscriberCount) * 100, 2);
             }
 
-            $analysis[$channelId] = ['rate' => $rate, 'email' => $email];
+            $analysis[$channelId] = ['rate' => $rate, 'email' => $email, 'latestVideoAt' => $latestVideoAt];
         }
 
         return $analysis;

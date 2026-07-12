@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ExternalLink, Mail, TrendingUp, Users } from 'lucide-vue-next';
+import { Clock, ExternalLink, Mail, TrendingUp, Users } from 'lucide-vue-next';
 import PlatformIcon from '@/components/influencers/PlatformIcon.vue';
 import SaveToListDropdown from '@/components/influencers/SaveToListDropdown.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -19,15 +18,64 @@ defineProps<{
 }>();
 
 function formatFollowers(count: number | null): string {
-    if (count === null) return 'N/A';
-    if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
-    if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+    if (count === null) {
+return 'N/A';
+}
+
+    if (count >= 1_000_000) {
+return `${(count / 1_000_000).toFixed(1)}M`;
+}
+
+    if (count >= 1_000) {
+return `${(count / 1_000).toFixed(1)}K`;
+}
+
     return count.toString();
 }
 
-function formatDate(dateStr: string | null): string {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString();
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+// Months since the last post, or null if the date is missing/unparseable.
+function monthsSince(dateStr: string | null): number | null {
+    if (!dateStr) {
+return null;
+}
+
+    const then = new Date(dateStr).getTime();
+
+    if (Number.isNaN(then)) {
+return null;
+}
+
+    return (Date.now() - then) / (DAY_MS * 30.44);
+}
+
+// Compact, human-readable "how long ago" for the last post.
+function formatRelative(dateStr: string | null): string {
+    const months = monthsSince(dateStr);
+
+    if (months === null) {
+return 'Unknown';
+}
+
+    if (months < 1) {
+return 'this month';
+}
+
+    if (months < 12) {
+return `${Math.round(months)}mo ago`;
+}
+
+    const years = months / 12;
+
+    return `${years.toFixed(years < 10 ? 1 : 0)}yr ago`;
+}
+
+// Flag channels dormant for over a year so stale results stand out at a glance.
+function isStale(dateStr: string | null): boolean {
+    const months = monthsSince(dateStr);
+
+    return months !== null && months >= 12;
 }
 
 function platformLabel(platform: string): string {
@@ -36,6 +84,7 @@ function platformLabel(platform: string): string {
         instagram: 'Instagram',
         tiktok: 'TikTok',
     };
+
     return labels[platform] ?? platform;
 }
 </script>
@@ -102,8 +151,13 @@ function platformLabel(platform: string): string {
                 <Badge variant="outline" class="text-xs">
                     {{ platformLabel(influencer.platform) }}
                 </Badge>
-                <span v-if="influencer.latest_activity_at">
-                    Last active: {{ formatDate(influencer.latest_activity_at) }}
+                <span
+                    v-if="influencer.latest_activity_at"
+                    class="flex items-center gap-1"
+                    :class="isStale(influencer.latest_activity_at) ? 'text-amber-600 dark:text-amber-500' : ''"
+                >
+                    <Clock class="h-3 w-3" />
+                    Posted {{ formatRelative(influencer.latest_activity_at) }}
                 </span>
             </div>
         </CardContent>

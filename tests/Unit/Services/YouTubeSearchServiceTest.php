@@ -181,4 +181,64 @@ class YouTubeSearchServiceTest extends TestCase
         $this->assertSame('team@studio.io', $results[0]->contactEmail);
         $this->assertNotNull($results[0]->engagementRate);
     }
+
+    public function test_latest_activity_is_the_most_recent_upload_not_the_channel_creation_date(): void
+    {
+        config(['services.youtube.api_key' => 'test-key']);
+
+        Http::fake([
+            'www.googleapis.com/youtube/v3/search*' => Http::response([
+                'items' => [['id' => ['channelId' => 'UC123'], 'snippet' => ['channelId' => 'UC123']]],
+            ]),
+            'www.googleapis.com/youtube/v3/channels*' => Http::response([
+                'items' => [[
+                    'id' => 'UC123',
+                    // Channel created in 2012 but last uploaded in 2021 — the old code
+                    // reported 2012, making a dormant channel look active.
+                    'snippet' => ['title' => 'Old Channel', 'publishedAt' => '2012-01-01T00:00:00Z'],
+                    'statistics' => ['subscriberCount' => '10000'],
+                    'brandingSettings' => ['channel' => []],
+                    'contentDetails' => ['relatedPlaylists' => ['uploads' => 'UU123']],
+                ]],
+            ]),
+            'www.googleapis.com/youtube/v3/playlistItems*' => Http::response([
+                'items' => [['contentDetails' => ['videoId' => 'v1']], ['contentDetails' => ['videoId' => 'v2']]],
+            ]),
+            'www.googleapis.com/youtube/v3/videos*' => Http::response([
+                'items' => [
+                    ['snippet' => ['publishedAt' => '2019-06-01T00:00:00Z'], 'statistics' => ['likeCount' => '10']],
+                    ['snippet' => ['publishedAt' => '2021-03-15T00:00:00Z'], 'statistics' => ['likeCount' => '20']],
+                ],
+            ]),
+        ]);
+
+        $results = app(YouTubeSearchService::class)->search('cooking', 5);
+
+        $this->assertSame('2021-03-15T00:00:00Z', $results[0]->latestActivityAt);
+    }
+
+    public function test_latest_activity_is_null_when_a_channel_has_no_uploads(): void
+    {
+        config(['services.youtube.api_key' => 'test-key']);
+
+        Http::fake([
+            'www.googleapis.com/youtube/v3/search*' => Http::response([
+                'items' => [['id' => ['channelId' => 'UC123'], 'snippet' => ['channelId' => 'UC123']]],
+            ]),
+            'www.googleapis.com/youtube/v3/channels*' => Http::response([
+                'items' => [[
+                    'id' => 'UC123',
+                    'snippet' => ['title' => 'Empty Channel', 'publishedAt' => '2012-01-01T00:00:00Z'],
+                    'statistics' => ['subscriberCount' => '10000'],
+                    'brandingSettings' => ['channel' => []],
+                    'contentDetails' => ['relatedPlaylists' => []],
+                ]],
+            ]),
+            'www.googleapis.com/youtube/v3/*' => Http::response(['items' => []]),
+        ]);
+
+        $results = app(YouTubeSearchService::class)->search('cooking', 5);
+
+        $this->assertNull($results[0]->latestActivityAt);
+    }
 }
