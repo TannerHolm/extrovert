@@ -2,6 +2,7 @@
 import { useForm, usePage } from '@inertiajs/vue3';
 import { Mail } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import RichTextEditor from '@/components/RichTextEditor.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { hasContent, isHtml, toEditorHtml } from '@/lib/email';
 import { store as sendOutreachEmail } from '@/routes/influencers/entries/emails';
 import type { OutreachMessage } from '@/types';
 
@@ -48,12 +50,13 @@ watch(open, (isOpen) => {
     if (isOpen) {
         form.clearErrors();
         form.subject = `Partnership Opportunity — ${props.influencerName}`;
-        form.body =
+        form.body = toEditorHtml(
             `Hi ${props.influencerName},\n\n` +
-            `I came across your ${props.platform} profile (@${props.influencerHandle}) and love your content. ` +
-            `I'd like to discuss a potential partnership opportunity.\n\n` +
-            `Would you be open to a quick chat?\n\n` +
-            `Best regards`;
+                `I came across your ${props.platform} profile (@${props.influencerHandle}) and love your content. ` +
+                `I'd like to discuss a potential partnership opportunity.\n\n` +
+                `Would you be open to a quick chat?\n\n` +
+                `Best regards`,
+        );
     }
 });
 
@@ -87,11 +90,19 @@ function send() {
     }
 
     // mailto fallback for contexts without a saved entry (e.g. Discover results).
+    // mailto can't carry HTML, so degrade the body to plain text.
     const params = new URLSearchParams();
     params.set('subject', form.subject);
-    params.set('body', form.body);
+    params.set('body', htmlToPlainText(form.body));
     window.open(`mailto:${props.influencerEmail}?${params.toString()}`, '_blank');
     open.value = false;
+}
+
+function htmlToPlainText(html: string): string {
+    const container = document.createElement('div');
+    container.innerHTML = html.replace(/<\/p>/gi, '</p>\n\n').replace(/<br\s*\/?>/gi, '\n');
+
+    return (container.textContent ?? '').trim();
 }
 </script>
 
@@ -135,7 +146,13 @@ function send() {
                         </span>
                         <span class="shrink-0 text-muted-foreground">{{ formatDate(message.sent_at) }}</span>
                     </div>
-                    <p class="mt-1 line-clamp-3 whitespace-pre-line text-muted-foreground">{{ message.body }}</p>
+                    <!-- Outbound HTML is sanitized server-side before storage. -->
+                    <p
+                        v-if="isHtml(message.body)"
+                        class="rte-history mt-1 line-clamp-3 text-muted-foreground"
+                        v-html="message.body"
+                    />
+                    <p v-else class="mt-1 line-clamp-3 whitespace-pre-line text-muted-foreground">{{ message.body }}</p>
                     <p v-if="message.sent_by" class="mt-1 text-muted-foreground/70">by {{ message.sent_by }}</p>
                 </div>
             </div>
@@ -152,19 +169,14 @@ function send() {
                 </div>
                 <div class="space-y-2">
                     <Label>Message</Label>
-                    <textarea
-                        v-model="form.body"
-                        rows="8"
-                        class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive': form.errors.body }"
-                    />
+                    <RichTextEditor v-model="form.body" />
                     <p v-if="form.errors.body" class="text-sm text-destructive">{{ form.errors.body }}</p>
                 </div>
             </div>
 
             <DialogFooter>
                 <Button variant="outline" @click="open = false">Cancel</Button>
-                <Button :disabled="form.processing || !influencerEmail" @click="send">
+                <Button :disabled="form.processing || !influencerEmail || !hasContent(form.body)" @click="send">
                     <Mail class="mr-2 h-4 w-4" />
                     {{ canSendInApp ? 'Send email' : 'Open in Email Client' }}
                 </Button>

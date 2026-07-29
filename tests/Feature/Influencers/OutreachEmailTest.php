@@ -91,6 +91,53 @@ class OutreachEmailTest extends TestCase
             ->hasReplyTo("reply+{$message->reply_token}@in.extrovert.test"));
     }
 
+    public function test_html_bodies_are_sanitized_and_sent_with_a_text_alternative(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $entry = $this->entryFor($user);
+
+        $this->actingAs($user)
+            ->post($this->sendRoute($user, $entry), [
+                'subject' => 'Partnership?',
+                'body' => '<p>Hi <strong>there</strong>!</p><script>alert(1)</script><p onclick="steal()">Let\'s <a href="https://example.com">talk</a>.</p>',
+            ])
+            ->assertRedirect();
+
+        $stored = $entry->messages()->firstOrFail()->body;
+
+        // Formatting survives; script tags and event handlers do not.
+        $this->assertStringContainsString('<strong>there</strong>', $stored);
+        $this->assertStringContainsString('href="https://example.com"', $stored);
+        $this->assertStringNotContainsString('<script', $stored);
+        $this->assertStringNotContainsString('onclick', $stored);
+
+        Mail::assertSent(OutreachEmail::class, function (OutreachEmail $mail) {
+            return str_contains($mail->bodyHtml, '<strong>there</strong>')
+                && ! str_contains($mail->bodyHtml, '<script')
+                && str_contains($mail->bodyText, 'Hi there!')
+                && ! str_contains($mail->bodyText, '<');
+        });
+    }
+
+    public function test_a_markup_only_body_is_rejected(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $entry = $this->entryFor($user);
+
+        $this->actingAs($user)
+            ->post($this->sendRoute($user, $entry), [
+                'subject' => 'Hello',
+                'body' => '<p></p><p>   </p>',
+            ])
+            ->assertSessionHasErrors(['body']);
+
+        Mail::assertNothingSent();
+    }
+
     public function test_sending_does_not_downgrade_an_existing_status(): void
     {
         Mail::fake();

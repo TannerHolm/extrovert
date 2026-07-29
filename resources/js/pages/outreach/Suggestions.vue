@@ -3,11 +3,13 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { Check, FileText, Mail, MessageCircleReply, Sparkles, X } from 'lucide-vue-next';
 import { reactive } from 'vue';
 import Heading from '@/components/Heading.vue';
+import RichTextEditor from '@/components/RichTextEditor.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { hasContent, toEditorHtml } from '@/lib/email';
 import { dashboard } from '@/routes';
 import { approve as approveRoute, dismiss as dismissRoute } from '@/routes/suggestions';
 import type { Team } from '@/types';
@@ -59,7 +61,8 @@ const drafts = reactive<Record<number, { subject: string; body: string }>>({});
 for (const suggestion of props.suggestions) {
     drafts[suggestion.id] = {
         subject: suggestion.payload.subject ?? '',
-        body: suggestion.payload.body ?? '',
+        // Generators produce plain text; lift it into editor paragraphs.
+        body: toEditorHtml(suggestion.payload.body ?? ''),
     };
 }
 
@@ -105,7 +108,7 @@ const typeIcons = {
 function approveLabel(suggestion: Suggestion): string {
     switch (suggestion.type) {
         case 'reply_triage':
-            return drafts[suggestion.id]?.body ? 'Apply status & send reply' : 'Apply status';
+            return hasContent(drafts[suggestion.id]?.body ?? '') ? 'Apply status & send reply' : 'Apply status';
         case 'deal_recap':
             return 'Save to deal notes';
         default:
@@ -172,12 +175,7 @@ function approveLabel(suggestion: Suggestion): string {
                         </div>
                         <div class="space-y-2">
                             <Label>Message</Label>
-                            <textarea
-                                v-model="drafts[suggestion.id].body"
-                                rows="7"
-                                :disabled="!canManage"
-                                class="border-input bg-background ring-offset-background focus-visible:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70"
-                            />
+                            <RichTextEditor v-model="drafts[suggestion.id].body" :disabled="!canManage" />
                         </div>
                     </template>
 

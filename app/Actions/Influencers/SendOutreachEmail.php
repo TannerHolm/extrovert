@@ -7,6 +7,7 @@ use App\Mail\OutreachEmail;
 use App\Models\InfluencerListEntry;
 use App\Models\OutreachMessage;
 use App\Models\User;
+use App\Support\EmailBody;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -21,6 +22,10 @@ class SendOutreachEmail
      */
     public function handle(InfluencerListEntry $entry, User $sender, string $subject, string $body): OutreachMessage
     {
+        // Editor HTML is sanitized before anything is stored or sent; plain
+        // text (templates, AI drafts) passes through untouched.
+        $body = EmailBody::clean($body);
+
         $toEmail = $entry->influencer->contact_email;
         $from = $entry->influencerList->team->sendingFrom();
 
@@ -35,7 +40,8 @@ class SendOutreachEmail
 
         Mail::to($toEmail)->send(new OutreachEmail(
             subjectLine: $subject,
-            bodyText: $body,
+            bodyHtml: EmailBody::toHtml($body),
+            bodyText: EmailBody::toText($body),
             fromEmail: $from['address'],
             replyToEmail: $replyToEmail,
             fromName: $from['name'] ?? '',

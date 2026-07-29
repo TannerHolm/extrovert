@@ -15,6 +15,7 @@ class OutreachEmail extends Mailable
 
     public function __construct(
         public string $subjectLine,
+        public string $bodyHtml,
         public string $bodyText,
         public string $fromEmail,
         public string $replyToEmail,
@@ -35,8 +36,12 @@ class OutreachEmail extends Mailable
     public function content(): Content
     {
         return new Content(
+            html: 'emails.outreach-html',
             text: 'emails.outreach',
-            with: ['body' => $this->bodyText],
+            with: [
+                'body' => $this->bodyText,
+                'bodyHtml' => $this->bodyHtml,
+            ],
         );
     }
 }
