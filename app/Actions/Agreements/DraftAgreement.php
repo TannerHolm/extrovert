@@ -2,12 +2,11 @@
 
 namespace App\Actions\Agreements;
 
-use Anthropic\Client;
 use App\Enums\CompensationType;
 use App\Models\AgreementTemplate;
 use App\Models\Deal;
+use App\Services\AI\Claude;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Produces the draft agreement body for a deal: the team's template merged
@@ -16,28 +15,27 @@ use Illuminate\Support\Facades\Log;
  */
 class DraftAgreement
 {
+    public function __construct(private readonly Claude $claude)
+    {
+        //
+    }
+
     public function handle(Deal $deal): string
     {
         $merged = $this->mergeTemplate($deal);
 
-        $apiKey = config('services.anthropic.key');
+        // Drafting must never block on the AI layer — the merged template is
+        // always a complete, reviewable agreement.
+        $polished = $this->claude->draft(
+            'You are refining an influencer partnership agreement draft. '
+            .'Keep the exact same section structure, headings, parties, amounts, dates, and legal substance. '
+            .'Only improve clarity and fill small gaps (e.g. awkward phrasing from template merging). '
+            .'Return ONLY the revised agreement as markdown, with no preamble or commentary.',
+            "Refine this agreement draft:\n\n".$merged,
+            maxTokens: 8000,
+        );
 
-        if ($apiKey === null) {
-            return $merged;
-        }
-
-        try {
-            return $this->polish($apiKey, $deal, $merged);
-        } catch (\Throwable $exception) {
-            // Drafting must never block on the AI layer — the merged template
-            // is always a complete, reviewable agreement.
-            Log::warning('Agreement draft polish failed; using template merge.', [
-                'deal_id' => $deal->id,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return $merged;
-        }
+        return $polished ?? $merged;
     }
 
     private function mergeTemplate(Deal $deal): string
@@ -112,35 +110,5 @@ class DraftAgreement
         }
 
         return 'The Brand will provide the Creator with '.implode(', plus ', $parts).'.';
-    }
-
-    /**
-     * Ask Claude to tailor the merged draft to this deal. The model only
-     * refines wording — placeholders are already resolved, and the output is
-     * still reviewed by a human before sending.
-     */
-    private function polish(string $apiKey, Deal $deal, string $merged): string
-    {
-        $client = new Client(apiKey: $apiKey);
-
-        $message = $client->messages->create(
-            maxTokens: 8000,
-            model: 'claude-opus-5',
-            system: 'You are refining an influencer partnership agreement draft. '
-                .'Keep the exact same section structure, headings, parties, amounts, dates, and legal substance. '
-                .'Only improve clarity and fill small gaps (e.g. awkward phrasing from template merging). '
-                .'Return ONLY the revised agreement as markdown, with no preamble or commentary.',
-            messages: [[
-                'role' => 'user',
-                'content' => "Refine this agreement draft:\n\n".$merged,
-            ]],
-        );
-
-        $text = collect($message->content)
-            ->filter(fn ($block) => ($block->type ?? null) === 'text')
-            ->map(fn ($block) => $block->text)
-            ->implode("\n");
-
-        return trim($text) !== '' ? trim($text) : $merged;
     }
 }

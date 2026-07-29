@@ -3,6 +3,7 @@
 namespace App\Actions\Outreach;
 
 use App\Enums\OutreachStatus;
+use App\Jobs\Suggestions\TriageReply;
 use App\Models\OutreachMessage;
 use App\Models\UnmatchedInboundEmail;
 use App\Notifications\Outreach\InboundReplyReceived;
@@ -81,6 +82,9 @@ class HandleInboundEmail
 
         // Replies are time-sensitive — tell whoever owns this relationship.
         $entry->addedBy?->notify(new InboundReplyReceived($message));
+
+        // And let the AI triage it into a suggested status + drafted response.
+        TriageReply::dispatch($message);
 
         return $message;
     }

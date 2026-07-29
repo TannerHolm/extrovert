@@ -7,6 +7,7 @@ use App\Http\Controllers\Influencers\InfluencerListController;
 use App\Http\Controllers\Influencers\InfluencerListEntryController;
 use App\Http\Controllers\Influencers\InfluencerSearchController;
 use App\Http\Controllers\Influencers\OutreachEmailController;
+use App\Http\Controllers\Outreach\SuggestionController;
 use App\Http\Controllers\Reports\PartnerRoiController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
@@ -59,6 +60,11 @@ Route::prefix('{current_team}')
         Route::post('influencers/lists/{influencerList}/entries/{entry}/deals', [DealController::class, 'store'])->name('influencers.entries.deals.store');
         Route::patch('influencers/lists/{influencerList}/entries/{entry}/deals/{deal}', [DealController::class, 'update'])->name('influencers.entries.deals.update');
         Route::delete('influencers/lists/{influencerList}/entries/{entry}/deals/{deal}', [DealController::class, 'destroy'])->name('influencers.entries.deals.destroy');
+
+        // AI suggestion approval queue
+        Route::get('suggestions', [SuggestionController::class, 'index'])->name('suggestions.index');
+        Route::post('suggestions/{suggestion}/approve', [SuggestionController::class, 'approve'])->name('suggestions.approve');
+        Route::post('suggestions/{suggestion}/dismiss', [SuggestionController::class, 'dismiss'])->name('suggestions.dismiss');
 
         // Reports (partner ROI + commission export)
         Route::get('reports/roi', [PartnerRoiController::class, 'index'])->name('reports.roi');

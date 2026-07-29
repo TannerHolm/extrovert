@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('extrovert:flag-overdue-deliverables')->dailyAt('08:00');
 Schedule::command('extrovert:expire-agreements')->dailyAt('02:00');
 Schedule::command('extrovert:commission-report')->monthlyOn(1, '06:00');
+Schedule::command('extrovert:suggest-follow-ups')->dailyAt('09:00');

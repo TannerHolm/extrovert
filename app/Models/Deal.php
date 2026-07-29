@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
 #[Fillable([
@@ -79,6 +80,16 @@ class Deal extends Model
     public function agreements(): HasMany
     {
         return $this->hasMany(Agreement::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * AI-drafted suggestions awaiting review for this deal.
+     *
+     * @return MorphMany<SuggestedAction, $this>
+     */
+    public function suggestedActions(): MorphMany
+    {
+        return $this->morphMany(SuggestedAction::class, 'subject');
     }
 
     /**

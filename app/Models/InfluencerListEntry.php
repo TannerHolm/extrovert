@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 #[Fillable([
     'influencer_list_id',
@@ -54,6 +55,16 @@ class InfluencerListEntry extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(OutreachMessage::class)->orderBy('created_at');
+    }
+
+    /**
+     * AI-drafted suggestions awaiting review for this entry.
+     *
+     * @return MorphMany<SuggestedAction, $this>
+     */
+    public function suggestedActions(): MorphMany
+    {
+        return $this->morphMany(SuggestedAction::class, 'subject');
     }
 
     /**

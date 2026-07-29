@@ -7,6 +7,7 @@ use App\Enums\TeamPermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Influencers\SaveDealRequest;
 use App\Jobs\Shopify\ProvisionDealAttribution;
+use App\Jobs\Suggestions\GenerateDealRecap;
 use App\Models\Deal;
 use App\Models\InfluencerList;
 use App\Models\InfluencerListEntry;
@@ -43,9 +44,16 @@ class DealController extends Controller
         $this->authorizeEntry($request, $influencerList, $entry);
         abort_unless($deal->influencer_list_entry_id === $entry->id, 404);
 
+        $wasCompleted = $deal->status === DealStatus::Completed;
+
         $deal->update($request->validated());
 
         $this->provisionAttributionIfAgreed($deal);
+
+        // Completion earns a performance recap in the suggestion queue.
+        if (! $wasCompleted && $deal->status === DealStatus::Completed) {
+            GenerateDealRecap::dispatch($deal);
+        }
 
         return back();
     }

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Influencers;
 
+use App\Jobs\Suggestions\GenerateFirstTouch;
 use App\Models\Influencer;
 use App\Models\InfluencerList;
 use App\Models\InfluencerListEntry;
@@ -33,7 +34,7 @@ class SaveInfluencerToList
             ],
         );
 
-        return InfluencerListEntry::firstOrCreate(
+        $entry = InfluencerListEntry::firstOrCreate(
             [
                 'influencer_list_id' => $list->id,
                 'influencer_id' => $influencer->id,
@@ -42,5 +43,13 @@ class SaveInfluencerToList
                 'added_by' => $addedBy->id,
             ],
         );
+
+        // A reachable, never-contacted creator gets a personalized first-touch
+        // draft waiting in the suggestion queue.
+        if ($entry->wasRecentlyCreated && $influencer->contact_email !== null) {
+            GenerateFirstTouch::dispatch($entry);
+        }
+
+        return $entry;
     }
 }
