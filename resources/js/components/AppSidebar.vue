@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Search, Users } from 'lucide-vue-next';
+import { BookOpen, FolderGit2, LayoutGrid, Search, TrendingUp, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -19,6 +19,7 @@ import {
 import { dashboard } from '@/routes';
 import { search as influencerSearch } from '@/routes/influencers';
 import { index as influencerLists } from '@/routes/influencers/lists';
+import { roi as partnerRoi } from '@/routes/reports';
 import type { NavItem } from '@/types';
 
 const page = usePage();
@@ -44,6 +45,11 @@ const mainNavItems = computed<NavItem[]>(() => [
                   title: 'Influencers',
                   href: influencerLists(page.props.currentTeam.slug).url,
                   icon: Users,
+              },
+              {
+                  title: 'Partner ROI',
+                  href: partnerRoi(page.props.currentTeam.slug).url,
+                  icon: TrendingUp,
               },
           ]
         : []),

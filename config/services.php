@@ -49,4 +49,18 @@ return [
         'key' => env('BREVO_API_KEY'),
     ],
 
+    'anthropic' => [
+        // Enables AI-polished agreement drafts; without it, drafting falls back
+        // to a deterministic template merge.
+        'key' => env('ANTHROPIC_API_KEY'),
+    ],
+
+    'inbound_mail' => [
+        // Domain configured for inbound parsing at the mail provider, e.g. in.extrovert.app.
+        // When set, outreach Reply-To becomes reply+<token>@<domain> so replies land in the app.
+        'domain' => env('INBOUND_MAIL_DOMAIN'),
+        // Shared secret the provider includes when posting to the inbound webhook.
+        'webhook_token' => env('INBOUND_MAIL_WEBHOOK_TOKEN'),
+    ],
+
 ];

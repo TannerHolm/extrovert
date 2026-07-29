@@ -92,6 +92,36 @@ class Team extends Model
     }
 
     /**
+     * Get all deals for this team.
+     *
+     * @return HasMany<Deal, $this>
+     */
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class);
+    }
+
+    /**
+     * Get all third-party integrations connected to this team.
+     *
+     * @return HasMany<TeamIntegration, $this>
+     */
+    public function integrations(): HasMany
+    {
+        return $this->hasMany(TeamIntegration::class);
+    }
+
+    /**
+     * Get all Shopify orders attributed to this team's deals.
+     *
+     * @return HasMany<AttributedOrder, $this>
+     */
+    public function attributedOrders(): HasMany
+    {
+        return $this->hasMany(AttributedOrder::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

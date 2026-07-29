@@ -27,11 +27,17 @@ import {
 } from '@/components/ui/tooltip';
 import { useInitials } from '@/composables/useInitials';
 import { edit, index, update } from '@/routes/teams';
+import {
+    destroy as destroyIntegration,
+    store as storeIntegration,
+} from '@/routes/teams/integrations';
 import { update as updateMember } from '@/routes/teams/members';
 import { update as updateSendingDomain } from '@/routes/teams/sending';
 import type {
+    IntegrationProviderOption,
     RoleOption,
     Team,
+    TeamIntegration,
     TeamInvitation,
     TeamMember,
     TeamPermissions,
@@ -41,6 +47,8 @@ type Props = {
     team: Team;
     members: TeamMember[];
     invitations: TeamInvitation[];
+    integrations: TeamIntegration[];
+    availableIntegrations: IntegrationProviderOption[];
     permissions: TeamPermissions;
     availableRoles: RoleOption[];
 };
@@ -87,6 +95,61 @@ const saveSendingDomain = () => {
         preserveScroll: true,
     });
 };
+
+// Integrations: one connect form at a time, keyed by provider.
+const connectingProvider = ref<IntegrationProviderOption | null>(null);
+
+const integrationForm = useForm({
+    provider: '',
+    credentials: {} as Record<string, string>,
+});
+
+const credentialLabels: Record<string, string> = {
+    shop_domain: 'Shop domain (e.g. yourstore.myshopify.com)',
+    access_token: 'Admin API access token',
+    api_secret: 'API secret key (verifies webhooks)',
+};
+
+// Validation errors come back keyed as credentials.<field>, which isn't part
+// of the form's typed error keys.
+const integrationError = (field: string): string | undefined =>
+    (integrationForm.errors as Record<string, string>)[`credentials.${field}`];
+
+const startConnecting = (provider: IntegrationProviderOption) => {
+    connectingProvider.value = provider;
+    integrationForm.clearErrors();
+    integrationForm.provider = provider.value;
+    integrationForm.credentials = Object.fromEntries(
+        provider.credential_fields.map((field) => [field, '']),
+    );
+};
+
+const connectIntegration = () => {
+    integrationForm.post(storeIntegration(props.team.slug).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            connectingProvider.value = null;
+            integrationForm.reset();
+        },
+    });
+};
+
+const disconnectIntegration = (integration: TeamIntegration) => {
+    if (!confirm(`Disconnect ${integration.provider_label}? Stored credentials will be deleted.`)) {
+        return;
+    }
+
+    router.delete(
+        destroyIntegration([props.team.slug, integration.id]).url,
+        { preserveScroll: true },
+    );
+};
+
+const unconnectedIntegrations = computed(() =>
+    props.availableIntegrations.filter(
+        (provider) => !props.integrations.some((integration) => integration.provider === provider.value),
+    ),
+);
 
 const updateMemberRole = (member: TeamMember, newRole: string) => {
     router.visit(updateMember([props.team.slug, member.id]), {
@@ -250,6 +313,112 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                     </Transition>
                 </div>
             </form>
+        </div>
+
+        <!-- Integrations Section -->
+        <div v-if="permissions.canUpdateTeam" class="space-y-6">
+            <Heading
+                variant="small"
+                title="Integrations"
+                description="Connect your store to attribute orders and revenue to influencer deals."
+            />
+
+            <div class="space-y-3">
+                <div
+                    v-for="integration in integrations"
+                    :key="integration.id"
+                    data-test="integration-row"
+                    class="flex items-center justify-between rounded-lg border p-4"
+                >
+                    <div>
+                        <div class="flex items-center gap-2 font-medium">
+                            {{ integration.provider_label }}
+                            <Badge
+                                variant="outline"
+                                class="border-green-500/40 text-green-600 dark:text-green-400"
+                            >
+                                Connected
+                            </Badge>
+                        </div>
+                        <div class="text-sm text-muted-foreground">
+                            {{ integration.last_synced_at
+                                ? `Last synced ${new Date(integration.last_synced_at).toLocaleString()}`
+                                : integration.connected_at
+                                    ? `Connected ${new Date(integration.connected_at).toLocaleDateString()}`
+                                    : 'Connected' }}
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        data-test="integration-disconnect-button"
+                        @click="disconnectIntegration(integration)"
+                    >
+                        Disconnect
+                    </Button>
+                </div>
+
+                <div
+                    v-for="provider in unconnectedIntegrations"
+                    :key="provider.value"
+                    class="rounded-lg border border-dashed p-4"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="font-medium">{{ provider.label }}</div>
+                        <Button
+                            v-if="connectingProvider?.value !== provider.value"
+                            variant="outline"
+                            size="sm"
+                            data-test="integration-connect-button"
+                            @click="startConnecting(provider)"
+                        >
+                            Connect
+                        </Button>
+                    </div>
+
+                    <form
+                        v-if="connectingProvider?.value === provider.value"
+                        class="mt-4 space-y-4"
+                        @submit.prevent="connectIntegration"
+                    >
+                        <div
+                            v-for="field in provider.credential_fields"
+                            :key="field"
+                            class="grid gap-2"
+                        >
+                            <Label :for="`integration-${field}`">
+                                {{ credentialLabels[field] ?? field }}
+                            </Label>
+                            <Input
+                                :id="`integration-${field}`"
+                                v-model="integrationForm.credentials[field]"
+                                :type="field.includes('token') || field.includes('secret') ? 'password' : 'text'"
+                                required
+                            />
+                            <InputError
+                                :message="integrationError(field)"
+                            />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <Button
+                                type="submit"
+                                size="sm"
+                                :disabled="integrationForm.processing"
+                            >
+                                Connect {{ provider.label }}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                @click="connectingProvider = null"
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- Members Section -->

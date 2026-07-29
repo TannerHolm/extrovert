@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\IntegrationProvider;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
@@ -75,6 +76,18 @@ class TeamController extends Controller
                     'role_label' => $invitation->role->label(),
                     'created_at' => $invitation->created_at->toISOString(),
                 ]),
+            'integrations' => $team->integrations()->get()->map(fn ($integration) => [
+                'id' => $integration->id,
+                'provider' => $integration->provider->value,
+                'provider_label' => $integration->provider->label(),
+                'connected_at' => $integration->connected_at?->toISOString(),
+                'last_synced_at' => $integration->last_synced_at?->toISOString(),
+            ]),
+            'availableIntegrations' => collect(IntegrationProvider::cases())->map(fn (IntegrationProvider $provider) => [
+                'value' => $provider->value,
+                'label' => $provider->label(),
+                'credential_fields' => $provider->credentialFields(),
+            ]),
             'permissions' => $user->toTeamPermissions($team),
             'availableRoles' => TeamRole::assignable(),
         ]);

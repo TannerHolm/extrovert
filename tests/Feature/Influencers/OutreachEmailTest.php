@@ -69,6 +69,28 @@ class OutreachEmailTest extends TestCase
         $this->assertSame(OutreachStatus::Contacted, $entry->fresh()->outreach_status);
     }
 
+    public function test_replies_route_through_the_inbound_domain_when_configured(): void
+    {
+        Mail::fake();
+        config(['services.inbound_mail.domain' => 'in.extrovert.test']);
+
+        $user = User::factory()->create();
+        $entry = $this->entryFor($user);
+
+        $this->actingAs($user)
+            ->post($this->sendRoute($user, $entry), [
+                'subject' => 'Partnership?',
+                'body' => 'Hi there.',
+            ])
+            ->assertRedirect();
+
+        $message = $entry->messages()->firstOrFail();
+
+        $this->assertNotNull($message->reply_token);
+        Mail::assertSent(OutreachEmail::class, fn (OutreachEmail $mail) => $mail
+            ->hasReplyTo("reply+{$message->reply_token}@in.extrovert.test"));
+    }
+
     public function test_sending_does_not_downgrade_an_existing_status(): void
     {
         Mail::fake();

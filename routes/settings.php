@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Teams\TeamController;
+use App\Http\Controllers\Teams\TeamIntegrationController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Teams\TeamMemberController;
 use App\Http\Controllers\Teams\TeamSendingDomainController;
@@ -34,6 +35,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('settings/teams/{team}', [TeamController::class, 'edit'])->name('teams.edit');
         Route::patch('settings/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
         Route::patch('settings/teams/{team}/sending', [TeamSendingDomainController::class, 'update'])->name('teams.sending.update');
+        Route::post('settings/teams/{team}/integrations', [TeamIntegrationController::class, 'store'])->name('teams.integrations.store');
+        Route::delete('settings/teams/{team}/integrations/{integration}', [TeamIntegrationController::class, 'destroy'])->name('teams.integrations.destroy');
         Route::delete('settings/teams/{team}', [TeamController::class, 'destroy'])->name('teams.destroy');
         Route::post('settings/teams/{team}/switch', [TeamController::class, 'switch'])->name('teams.switch');
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { List, Plus } from 'lucide-vue-next';
-import CreateListModal from '@/components/influencers/CreateListModal.vue';
 import Heading from '@/components/Heading.vue';
+import CreateListModal from '@/components/influencers/CreateListModal.vue';
 import { Button } from '@/components/ui/button';
 import { index } from '@/routes/influencers/lists';
 import { show } from '@/routes/influencers/lists';

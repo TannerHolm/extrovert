@@ -37,6 +37,7 @@ function entriesForStatus(status: string): InfluencerListEntry[] {
 
 function onDragStart(e: DragEvent, entryId: number) {
     dragEntryId.value = entryId;
+
     if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', String(entryId));
@@ -46,6 +47,7 @@ function onDragStart(e: DragEvent, entryId: number) {
 function onDragOver(e: DragEvent, status: string) {
     e.preventDefault();
     dragOverColumn.value = status;
+
     if (e.dataTransfer) {
         e.dataTransfer.dropEffect = 'move';
     }
@@ -60,12 +62,15 @@ function onDragLeave(status: string) {
 function onDrop(e: DragEvent, status: string) {
     e.preventDefault();
     dragOverColumn.value = null;
+
     if (dragEntryId.value !== null) {
         const entry = props.entries.find((en) => en.id === dragEntryId.value);
+
         if (entry && entry.outreach_status !== status) {
             emit('update-status', dragEntryId.value, status);
         }
     }
+
     dragEntryId.value = null;
 }
 

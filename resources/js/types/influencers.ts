@@ -66,6 +66,74 @@ export type OutreachMessage = {
     sent_at: string | null;
 };
 
+export type DealStatus = 'draft' | 'agreed' | 'live' | 'completed' | 'cancelled';
+
+export type CompensationType = 'gifted' | 'flat_fee' | 'commission' | 'hybrid';
+
+export type DealStatusOption = {
+    value: DealStatus;
+    label: string;
+    color: string;
+};
+
+export type CompensationTypeOption = {
+    value: CompensationType;
+    label: string;
+};
+
+export type Deliverable = {
+    type: 'post' | 'reel' | 'video' | 'story';
+    platform: Platform;
+    due_date: string | null;
+    posted_url: string | null;
+    posted_at: string | null;
+};
+
+export type DealAttribution = {
+    revenue_cents: number;
+    orders: number;
+    new_customers: number;
+};
+
+export type AgreementStatus = 'draft' | 'sent' | 'viewed' | 'signed' | 'declined' | 'voided';
+
+export type Agreement = {
+    id: number;
+    status: AgreementStatus;
+    status_label: string;
+    status_color: string;
+    body_markdown: string;
+    signer_name: string | null;
+    signer_email: string | null;
+    sent_at: string | null;
+    signed_at: string | null;
+    expires_at: string | null;
+    sign_url: string;
+};
+
+export type Deal = {
+    id: number;
+    status: DealStatus;
+    status_label: string;
+    status_color: string;
+    compensation_type: CompensationType;
+    compensation_type_label: string;
+    flat_fee_cents: number | null;
+    commission_rate: number | null;
+    product_value_cents: number | null;
+    deliverables: Deliverable[];
+    overdue_deliverables_count: number;
+    usage_rights: string | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    notes: string | null;
+    discount_code: string | null;
+    affiliate_url: string | null;
+    attribution: DealAttribution;
+    agreements: Agreement[];
+    created_at: string;
+};
+
 export type InfluencerListEntry = {
     id: number;
     outreach_status: OutreachStatus;
@@ -76,6 +144,7 @@ export type InfluencerListEntry = {
     created_at: string;
     influencer: SavedInfluencer;
     messages: OutreachMessage[];
+    deals: Deal[];
 };
 
 export type Paginator<T> = {

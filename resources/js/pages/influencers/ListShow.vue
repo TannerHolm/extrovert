@@ -2,9 +2,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Kanban, List, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import Heading from '@/components/Heading.vue';
 import KanbanBoard from '@/components/influencers/KanbanBoard.vue';
 import ListView from '@/components/influencers/ListView.vue';
-import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -13,12 +13,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { index, show } from '@/routes/influencers/lists';
 import {
     destroy as destroyEntry,
     update as updateEntry,
 } from '@/routes/influencers/entries';
-import type { InfluencerListEntry, OutreachStatusOption, Paginator } from '@/types';
+import { index, show } from '@/routes/influencers/lists';
+import type {
+    CompensationTypeOption,
+    DealStatusOption,
+    InfluencerListEntry,
+    OutreachStatusOption,
+    Paginator,
+} from '@/types';
 
 type Props = {
     list: { id: number; name: string; description: string | null };
@@ -26,6 +32,8 @@ type Props = {
     view: 'list' | 'kanban';
     filters: { status: string };
     outreachStatuses: OutreachStatusOption[];
+    dealStatuses: DealStatusOption[];
+    compensationTypes: CompensationTypeOption[];
     canManage: boolean;
 };
 
@@ -49,12 +57,18 @@ const viewMode = ref<'list' | 'kanban'>(props.view);
 const filterStatus = ref(props.filters.status);
 
 const paginatedEntries = computed(() => {
-    if (Array.isArray(props.entries)) return null;
+    if (Array.isArray(props.entries)) {
+return null;
+}
+
     return props.entries;
 });
 
 const allEntries = computed<InfluencerListEntry[]>(() => {
-    if (Array.isArray(props.entries)) return props.entries;
+    if (Array.isArray(props.entries)) {
+return props.entries;
+}
+
     return props.entries.data;
 });
 
@@ -97,7 +111,10 @@ function saveNotes(entryId: number, notes: string) {
 }
 
 function removeEntry(entryId: number) {
-    if (!confirm('Remove this influencer from the list?')) return;
+    if (!confirm('Remove this influencer from the list?')) {
+return;
+}
+
     const teamSlug = page.props.currentTeam!.slug;
     router.delete(
         destroyEntry({ current_team: teamSlug, influencerList: props.list.id, entry: entryId }).url,
@@ -192,6 +209,8 @@ function removeEntry(entryId: number) {
             v-else-if="viewMode === 'list' && allEntries.length > 0"
             :entries="allEntries"
             :outreach-statuses="outreachStatuses"
+            :deal-statuses="dealStatuses"
+            :compensation-types="compensationTypes"
             :can-manage="canManage"
             :list-id="list.id"
             @update-status="updateStatus"

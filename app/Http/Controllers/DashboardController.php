@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DealStatus;
 use App\Enums\OutreachStatus;
+use App\Models\Deal;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,6 +38,44 @@ class DashboardController extends Controller
         ])->sum(fn (OutreachStatus $status) => $countsByStatus->get($status->value, 0));
 
         $confirmedPartners = (int) $countsByStatus->get(OutreachStatus::Confirmed->value, 0);
+
+        // Deals strip: active deals, drafts awaiting agreement, and overdue deliverables.
+        // Overdue detection reads the deliverables json, so it runs over the (small)
+        // set of active deals rather than in SQL.
+        $activeDeals = $team->deals()->whereIn('status', DealStatus::active())->get();
+
+        $dealMetrics = [
+            'active' => $activeDeals->count(),
+            'awaiting_agreement' => $team->deals()->where('status', DealStatus::Draft)->count(),
+            'overdue_deliverables' => $activeDeals->sum(fn (Deal $deal) => count($deal->overdueDeliverables())),
+            'attributed_revenue_cents' => (int) $team->attributedOrders()->sum('total_cents'),
+        ];
+
+        // Spend vs revenue per deal, for the ROI scatter. Capped — the
+        // dashboard is a glance, the reports page is the full picture.
+        $roiPoints = $team->deals()
+            ->with('entry.influencer')
+            ->withSum('attributedOrders as revenue_cents', 'total_cents')
+            ->limit(100)
+            ->get()
+            ->map(function (Deal $deal) {
+                $revenue = (int) $deal->revenue_cents;
+                $commission = $deal->commission_rate !== null
+                    ? (int) round($revenue * ((float) $deal->commission_rate) / 100)
+                    : 0;
+                $spend = (int) ($deal->product_value_cents ?? 0)
+                    + (int) ($deal->flat_fee_cents ?? 0)
+                    + $commission;
+                $influencer = $deal->entry->influencer;
+
+                return [
+                    'label' => $influencer->display_name ?? $influencer->handle,
+                    'spend_cents' => $spend,
+                    'revenue_cents' => $revenue,
+                ];
+            })
+            ->filter(fn (array $point) => $point['spend_cents'] > 0 || $point['revenue_cents'] > 0)
+            ->values();
 
         // Recent entries with influencer data
         $recentEntries = $team->influencerLists()
@@ -80,8 +120,10 @@ class DashboardController extends Controller
                 'active_outreach' => $activeOutreach,
                 'confirmed_partners' => $confirmedPartners,
             ],
+            'dealMetrics' => $dealMetrics,
             'statusCounts' => $statusCounts,
             'recentEntries' => $recentEntries,
+            'roiPoints' => $roiPoints,
         ]);
     }
 }

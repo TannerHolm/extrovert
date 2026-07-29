@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { Mail, TrendingUp, UserCheck, Users } from 'lucide-vue-next';
+import { AlertTriangle, DollarSign, FileSignature, Handshake, Mail, TrendingUp, UserCheck, Users } from 'lucide-vue-next';
+import Heading from '@/components/Heading.vue';
 import OutreachStatusBadge from '@/components/influencers/OutreachStatusBadge.vue';
 import PlatformIcon from '@/components/influencers/PlatformIcon.vue';
-import Heading from '@/components/Heading.vue';
+import RoiScatter from '@/components/reports/RoiScatter.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCents } from '@/lib/format';
 import { dashboard } from '@/routes';
 import type { OutreachStatus, Platform, Team } from '@/types';
 
@@ -36,8 +38,15 @@ type Props = {
         active_outreach: number;
         confirmed_partners: number;
     };
+    dealMetrics: {
+        active: number;
+        awaiting_agreement: number;
+        overdue_deliverables: number;
+        attributed_revenue_cents: number;
+    };
     statusCounts: StatusCount[];
     recentEntries: RecentEntry[];
+    roiPoints: { label: string; spend_cents: number; revenue_cents: number }[];
 };
 
 const props = defineProps<Props>();
@@ -116,6 +125,72 @@ function formatDate(dateStr: string): string {
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Deals Strip -->
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle class="text-sm font-medium">Active Deals</CardTitle>
+                    <Handshake class="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div class="text-2xl font-bold">{{ dealMetrics.active }}</div>
+                    <p class="text-xs text-muted-foreground">Agreed or live</p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle class="text-sm font-medium">Awaiting Agreement</CardTitle>
+                    <FileSignature class="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div class="text-2xl font-bold">{{ dealMetrics.awaiting_agreement }}</div>
+                    <p class="text-xs text-muted-foreground">Draft deals not yet agreed</p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle class="text-sm font-medium">Overdue Deliverables</CardTitle>
+                    <AlertTriangle
+                        class="h-4 w-4"
+                        :class="dealMetrics.overdue_deliverables > 0 ? 'text-amber-500' : 'text-muted-foreground'"
+                    />
+                </CardHeader>
+                <CardContent>
+                    <div class="text-2xl font-bold">{{ dealMetrics.overdue_deliverables }}</div>
+                    <p class="text-xs text-muted-foreground">Past due with no posted link</p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle class="text-sm font-medium">Attributed Revenue</CardTitle>
+                    <DollarSign class="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div class="text-2xl font-bold">{{ formatCents(dealMetrics.attributed_revenue_cents) }}</div>
+                    <p class="text-xs text-muted-foreground">From partner codes & links</p>
+                </CardContent>
+            </Card>
+        </div>
+
+        <!-- ROI Scatter -->
+        <Card v-if="roiPoints.length > 0">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-sm font-medium">
+                    <TrendingUp class="h-4 w-4" />
+                    Spend vs Revenue
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <RoiScatter :points="roiPoints" />
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Each dot is a deal. Above the dashed line = earned more than it cost.
+                </p>
+            </CardContent>
+        </Card>
 
         <!-- Pipeline Bar -->
         <Card v-if="totalPipeline > 0">

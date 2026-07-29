@@ -57,6 +57,16 @@ class InfluencerListEntry extends Model
     }
 
     /**
+     * Deals negotiated with this influencer, newest first.
+     *
+     * @return HasMany<Deal, $this>
+     */
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class)->orderByDesc('created_at');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

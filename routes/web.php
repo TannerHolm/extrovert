@@ -1,11 +1,16 @@
 <?php
 
+use App\Http\Controllers\Agreements\AgreementController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Influencers\DealController;
 use App\Http\Controllers\Influencers\InfluencerListController;
 use App\Http\Controllers\Influencers\InfluencerListEntryController;
 use App\Http\Controllers\Influencers\InfluencerSearchController;
 use App\Http\Controllers\Influencers\OutreachEmailController;
+use App\Http\Controllers\Reports\PartnerRoiController;
 use App\Http\Controllers\Teams\TeamInvitationController;
+use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
+use App\Http\Controllers\Webhooks\ShopifyWebhookController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -13,6 +18,16 @@ use Laravel\Fortify\Features;
 Route::inertia('/', 'Welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ])->name('home');
+
+// Shopify order webhooks: unauthenticated, HMAC-verified per team. Registered
+// before the {current_team} group so the prefix never captures "webhooks".
+Route::post('webhooks/shopify/{team}', ShopifyWebhookController::class)
+    ->name('webhooks.shopify');
+
+// Inbound email from the mail provider: shared-token authenticated, throttled.
+Route::post('webhooks/inbound-email', InboundEmailWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('webhooks.inbound-email');
 
 Route::prefix('{current_team}')
     ->middleware(['auth', 'verified', EnsureTeamMembership::class])
@@ -39,6 +54,21 @@ Route::prefix('{current_team}')
 
         // Outreach emails (send + logged thread)
         Route::post('influencers/lists/{influencerList}/entries/{entry}/emails', [OutreachEmailController::class, 'store'])->name('influencers.entries.emails.store');
+
+        // Deals (negotiated terms, deliverables, compensation per entry)
+        Route::post('influencers/lists/{influencerList}/entries/{entry}/deals', [DealController::class, 'store'])->name('influencers.entries.deals.store');
+        Route::patch('influencers/lists/{influencerList}/entries/{entry}/deals/{deal}', [DealController::class, 'update'])->name('influencers.entries.deals.update');
+        Route::delete('influencers/lists/{influencerList}/entries/{entry}/deals/{deal}', [DealController::class, 'destroy'])->name('influencers.entries.deals.destroy');
+
+        // Reports (partner ROI + commission export)
+        Route::get('reports/roi', [PartnerRoiController::class, 'index'])->name('reports.roi');
+        Route::get('reports/commissions.csv', [PartnerRoiController::class, 'commissionsCsv'])->name('reports.commissions');
+
+        // Agreements (drafted from deal terms, signed via tokenized public page)
+        Route::post('deals/{deal}/agreements', [AgreementController::class, 'store'])->name('agreements.store');
+        Route::patch('agreements/{agreement}', [AgreementController::class, 'update'])->name('agreements.update');
+        Route::post('agreements/{agreement}/send', [AgreementController::class, 'send'])->name('agreements.send');
+        Route::post('agreements/{agreement}/void', [AgreementController::class, 'void'])->name('agreements.void');
     });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -46,3 +76,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+require __DIR__.'/sign.php';

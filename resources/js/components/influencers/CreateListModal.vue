@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
-import { ref, useSlots } from 'vue';
+import { useSlots } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,

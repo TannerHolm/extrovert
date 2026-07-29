@@ -44,3 +44,17 @@ export type RoleOption = {
     value: TeamRole;
     label: string;
 };
+
+export type TeamIntegration = {
+    id: number;
+    provider: string;
+    provider_label: string;
+    connected_at: string | null;
+    last_synced_at: string | null;
+};
+
+export type IntegrationProviderOption = {
+    value: string;
+    label: string;
+    credential_fields: string[];
+};

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Influencers;
 
 use App\Actions\Influencers\SaveInfluencerToList;
+use App\Enums\CompensationType;
+use App\Enums\DealStatus;
+use App\Enums\IntegrationProvider;
 use App\Enums\OutreachStatus;
 use App\Enums\TeamPermission;
 use App\Http\Controllers\Controller;
@@ -83,6 +86,12 @@ class InfluencerListController extends Controller
         $status = $request->input('status');
         $view = $request->input('view', 'list');
 
+        // Shop domain powers per-deal affiliate URLs; null when no store is connected.
+        $shopDomain = $team->integrations()
+            ->where('provider', IntegrationProvider::Shopify)
+            ->first()
+            ?->credentials['shop_domain'] ?? null;
+
         $mapEntry = fn ($entry) => [
             'id' => $entry->id,
             'outreach_status' => $entry->outreach_status->value,
@@ -117,10 +126,57 @@ class InfluencerListController extends Controller
                 'sent_by' => $message->user?->name,
                 'sent_at' => $message->sent_at?->toISOString(),
             ])->all(),
+            'deals' => $entry->deals->map(fn ($deal) => [
+                'id' => $deal->id,
+                'status' => $deal->status->value,
+                'status_label' => $deal->status->label(),
+                'status_color' => $deal->status->color(),
+                'compensation_type' => $deal->compensation_type->value,
+                'compensation_type_label' => $deal->compensation_type->label(),
+                'flat_fee_cents' => $deal->flat_fee_cents,
+                'commission_rate' => $deal->commission_rate !== null ? (float) $deal->commission_rate : null,
+                'product_value_cents' => $deal->product_value_cents,
+                'deliverables' => $deal->deliverables ?? [],
+                'overdue_deliverables_count' => count($deal->overdueDeliverables()),
+                'usage_rights' => $deal->usage_rights,
+                'starts_at' => $deal->starts_at?->toDateString(),
+                'ends_at' => $deal->ends_at?->toDateString(),
+                'notes' => $deal->notes,
+                'discount_code' => $deal->discount_code,
+                'affiliate_url' => ($shopDomain && $deal->ref_token)
+                    ? "https://{$shopDomain}/?ref={$deal->ref_token}&utm_source=extrovert&utm_content={$deal->ref_token}"
+                    : null,
+                'attribution' => [
+                    'revenue_cents' => (int) ($deal->attributed_revenue_cents ?? 0),
+                    'orders' => (int) ($deal->attributed_orders_count ?? 0),
+                    'new_customers' => (int) ($deal->new_customers_count ?? 0),
+                ],
+                'agreements' => $deal->agreements->map(fn ($agreement) => [
+                    'id' => $agreement->id,
+                    'status' => $agreement->status->value,
+                    'status_label' => $agreement->status->label(),
+                    'status_color' => $agreement->status->color(),
+                    'body_markdown' => $agreement->body_markdown,
+                    'signer_name' => $agreement->signer_name,
+                    'signer_email' => $agreement->signer_email,
+                    'sent_at' => $agreement->sent_at?->toISOString(),
+                    'signed_at' => $agreement->signed_at?->toISOString(),
+                    'expires_at' => $agreement->expires_at?->toISOString(),
+                    'sign_url' => route('sign.show', ['token' => $agreement->sign_token]),
+                ])->all(),
+                'created_at' => $deal->created_at->toISOString(),
+            ])->all(),
         ];
 
         $query = $influencerList->entries()
-            ->with('influencer', 'addedBy', 'messages.user')
+            ->with(['influencer', 'addedBy', 'messages.user', 'deals' => fn ($deals) => $deals
+                ->with('agreements')
+                ->withSum('attributedOrders as attributed_revenue_cents', 'total_cents')
+                ->withCount([
+                    'attributedOrders as attributed_orders_count',
+                    'attributedOrders as new_customers_count' => fn ($orders) => $orders->where('is_new_customer', true),
+                ]),
+            ])
             ->when($status && $status !== 'all', fn ($q) => $q->where('outreach_status', $status))
             ->orderByDesc('created_at');
 
@@ -163,6 +219,15 @@ class InfluencerListController extends Controller
                 'value' => $s->value,
                 'label' => $s->label(),
                 'color' => $s->color(),
+            ]),
+            'dealStatuses' => collect(DealStatus::cases())->map(fn (DealStatus $s) => [
+                'value' => $s->value,
+                'label' => $s->label(),
+                'color' => $s->color(),
+            ]),
+            'compensationTypes' => collect(CompensationType::cases())->map(fn (CompensationType $t) => [
+                'value' => $t->value,
+                'label' => $t->label(),
             ]),
             'canManage' => $request->user()->hasTeamPermission($team, TeamPermission::ManageInfluencerLists),
         ]);
